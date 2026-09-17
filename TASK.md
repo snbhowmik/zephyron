@@ -40,7 +40,7 @@ gets its own fixture coverage when T-014 lands.)
 |---|---|---|---|
 | x | T-010 ★ | Domain model per `ARCH.md §4`. Frozen dataclasses, full type coverage, zero I/O. | T-004 |
 | x | T-011 ★ | Vendor the CycloneDX 1.7 JSON schema and the Cryptography Registry into `config/knowledge/cdx-crypto-registry/` at a pinned version. Document how to refresh. | T-001 |
-| ☐ | T-012 ★ | `normalize/registry.py` — resolve any algorithm spelling to canonical `(family, parameter_set, curve, primitive)`. Resolution order: OID → registry exact → alias table → UNKNOWN. Never drop silently. | T-010, T-011 |
+| x | T-012 ★ | `normalize/registry.py` — resolve any algorithm spelling to canonical `(family, parameter_set, curve, primitive)`. Resolution order: OID → registry exact → alias table → UNKNOWN. Never drop silently. | T-010, T-011 |
 | ☐ | T-013 ★ | `config/knowledge/aliases.yaml` — first 60 aliases covering what the tools actually emit. Include pre-standardisation PQC names (`Kyber768` → `ML-KEM-768`). | T-012 |
 | ☐ | T-014 ★ | CycloneDX version normalisation: ingest 1.4–1.7 → canonical 1.7. Preserve `evidence.occurrences[]` and `evidence.identity[].methods[]`. | T-012 |
 | ☐ | T-015 ★ | `classify.py` — the four finding classes (invariant I1). **Table-driven, from config, not hardcoded branches.** Property test: no symmetric algorithm ever lands in `QUANTUM_VULNERABLE`. | T-012 |
