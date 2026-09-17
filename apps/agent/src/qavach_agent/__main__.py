@@ -26,6 +26,7 @@ from pathlib import Path
 from qavach_collectors import CollectorRegistry
 
 from qavach_agent.enrollment import AgentCredential, EnrollmentError, enroll
+from qavach_agent.parser_worker import parse_worker_main
 from qavach_agent.runtime import RunForeverConfig, run_forever
 from qavach_agent.transport import AgentTransport
 
@@ -65,9 +66,21 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_parse_worker(args: argparse.Namespace) -> int:
+    result: int = parse_worker_main(args.parse_entrypoint)
+    return result
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="qavach-agent")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    # `metavar` overrides the auto-generated `{enroll,run,_parse-worker}`
+    # choices display in the usage line. Omitting `help=` on the
+    # `_parse-worker` subparser itself (not passing `argparse.SUPPRESS`,
+    # which was tried first and confirmed live to print the literal string
+    # "==SUPPRESS==" instead of hiding the line) keeps it out of the
+    # per-item listing too. It remains fully parseable either way — this
+    # only changes what --help prints.
+    subparsers = parser.add_subparsers(dest="command", required=True, metavar="{enroll,run}")
 
     enroll_parser = subparsers.add_parser(
         "enroll", help="exchange an enrollment token for a credential"
@@ -83,6 +96,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--credential", required=True)
     run_parser.add_argument("--poll-interval", type=float, default=30.0)
     run_parser.set_defaults(func=_cmd_run)
+
+    # Internal: re-exec target for parser_worker.run_in_worker (ARCH.md
+    # §3a's resource-limited parsing worker, T-031b). Not a user-facing
+    # command — hidden from --help.
+    worker_parser = subparsers.add_parser("_parse-worker")
+    worker_parser.add_argument("parse_entrypoint")
+    worker_parser.set_defaults(func=_cmd_parse_worker)
 
     return parser
 

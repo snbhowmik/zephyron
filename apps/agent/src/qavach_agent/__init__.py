@@ -1,4 +1,5 @@
 from qavach_agent.enrollment import AgentCredential, EnrollmentError, enroll
+from qavach_agent.parser_worker import WorkerLimits, WorkerResult, run_in_worker
 from qavach_agent.runtime import (
     PollOutcome,
     RunForeverConfig,
@@ -23,9 +24,12 @@ __all__ = [
     "PollOutcome",
     "RunForeverConfig",
     "ScanSpec",
+    "WorkerLimits",
+    "WorkerResult",
     "enroll",
     "parse_scan_spec",
     "poll_once",
     "run_forever",
+    "run_in_worker",
     "serialize_collector_result",
 ]
