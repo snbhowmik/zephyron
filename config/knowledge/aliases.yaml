@@ -1,0 +1,133 @@
+# T-013. Overlay for algorithm spellings tools actually emit that the
+# vendored CycloneDX registry (config/knowledge/cdx-crypto-registry/,
+# T-011) doesn't recognise verbatim, plus the algorithm-family OID table
+# the vendored registry does not provide (found during T-011/T-012 — it
+# only has OIDs for elliptic curves, not algorithm families).
+#
+# Consumed via AliasTable.from_dict() (packages/core/src/qavach_core/
+# normalize/aliases.py) — packages/core never reads this file itself
+# (zero I/O, CLAUDE.md §2); a caller outside core loads and parses this
+# YAML, then passes the dict in.
+#
+# Every OID below was verified against a primary source before being
+# added, not hand-written from memory (CLAUDE.md §8, ARCH.md A-19):
+#   - ML-KEM: CSOR algorithm registration + RFC 9935
+#     (draft-ietf-lamps-kyber-certificates), cross-checked 2026-09-18.
+#   - ML-DSA: CSOR algorithm registration + draft-ietf-lamps-
+#     dilithium-certificates §2, cross-checked 2026-09-18.
+#   - SLH-DSA: CSOR algorithm registration + RFC 9814 (SLH-DSA in CMS),
+#     spot-checked against SLH-DSA-SHA2-128s, 2026-09-18.
+#   - Classical OIDs (RSA/ECDSA/hash) are long-standing, extremely
+#     well-established PKCS#1/X.509 assignments, not re-verified live.
+
+oids:
+  # --- ML-KEM (FIPS 203) — id-alg-ml-kem-{512,768,1024} ---
+  "2.16.840.1.101.3.4.4.1": { family: ML-KEM, parameter_set: "512" }
+  "2.16.840.1.101.3.4.4.2": { family: ML-KEM, parameter_set: "768" }
+  "2.16.840.1.101.3.4.4.3": { family: ML-KEM, parameter_set: "1024" }
+
+  # --- ML-DSA (FIPS 204), pure variants — id-ml-dsa-{44,65,87} ---
+  "2.16.840.1.101.3.4.3.17": { family: ML-DSA, parameter_set: "44" }
+  "2.16.840.1.101.3.4.3.18": { family: ML-DSA, parameter_set: "65" }
+  "2.16.840.1.101.3.4.3.19": { family: ML-DSA, parameter_set: "87" }
+
+  # --- SLH-DSA (FIPS 205), pure variants — id-slh-dsa-{...} ---
+  "2.16.840.1.101.3.4.3.20": { family: SLH-DSA, parameter_set: "SHA2-128s" }
+  "2.16.840.1.101.3.4.3.21": { family: SLH-DSA, parameter_set: "SHA2-128f" }
+  "2.16.840.1.101.3.4.3.22": { family: SLH-DSA, parameter_set: "SHA2-192s" }
+  "2.16.840.1.101.3.4.3.23": { family: SLH-DSA, parameter_set: "SHA2-192f" }
+  "2.16.840.1.101.3.4.3.24": { family: SLH-DSA, parameter_set: "SHA2-256s" }
+  "2.16.840.1.101.3.4.3.25": { family: SLH-DSA, parameter_set: "SHA2-256f" }
+  "2.16.840.1.101.3.4.3.26": { family: SLH-DSA, parameter_set: "SHAKE-128s" }
+  "2.16.840.1.101.3.4.3.27": { family: SLH-DSA, parameter_set: "SHAKE-128f" }
+  "2.16.840.1.101.3.4.3.28": { family: SLH-DSA, parameter_set: "SHAKE-192s" }
+  "2.16.840.1.101.3.4.3.29": { family: SLH-DSA, parameter_set: "SHAKE-192f" }
+  "2.16.840.1.101.3.4.3.30": { family: SLH-DSA, parameter_set: "SHAKE-256s" }
+  "2.16.840.1.101.3.4.3.31": { family: SLH-DSA, parameter_set: "SHAKE-256f" }
+
+  # --- Classical, long-established (PKCS#1 / X.509) ---
+  "1.2.840.113549.1.1.1": { family: RSASSA-PKCS1 }  # rsaEncryption — generic RSA key, no padding/hash implied
+  "1.2.840.113549.1.1.5": { family: RSASSA-PKCS1 }  # sha1WithRSAEncryption
+  "1.2.840.113549.1.1.11": { family: RSASSA-PKCS1 } # sha256WithRSAEncryption
+  "1.2.840.113549.1.1.12": { family: RSASSA-PKCS1 } # sha384WithRSAEncryption
+  "1.2.840.113549.1.1.13": { family: RSASSA-PKCS1 } # sha512WithRSAEncryption
+  "1.2.840.10045.2.1": { family: ECDSA }            # id-ecPublicKey (generic EC key)
+  "1.2.840.10045.4.3.2": { family: ECDSA }          # ecdsa-with-SHA256
+  "1.2.840.10045.4.3.3": { family: ECDSA }          # ecdsa-with-SHA384
+  "1.2.840.10045.4.3.4": { family: ECDSA }          # ecdsa-with-SHA512
+  "1.2.840.113549.2.5": { family: MD5 }
+  "1.3.14.3.2.26": { family: SHA-1 }
+
+names:
+  # --- ARCH.md §5.2's own explicit examples ---
+  EC: { family: ECDSA }
+  ecdsa-with-SHA256: { family: ECDSA }
+  RSA: { family: RSASSA-PKCS1 }
+  rsaEncryption: { family: RSASSA-PKCS1 }
+
+  # --- Pre-standardisation PQC names — real codebases are full of these ---
+  Kyber512: { family: ML-KEM, parameter_set: "512" }
+  Kyber768: { family: ML-KEM, parameter_set: "768" }
+  Kyber1024: { family: ML-KEM, parameter_set: "1024" }
+  CRYSTALS-Kyber512: { family: ML-KEM, parameter_set: "512" }
+  CRYSTALS-Kyber768: { family: ML-KEM, parameter_set: "768" }
+  CRYSTALS-Kyber1024: { family: ML-KEM, parameter_set: "1024" }
+  Dilithium2: { family: ML-DSA, parameter_set: "44" }  # NIST category 2 -> ML-DSA-44
+  Dilithium3: { family: ML-DSA, parameter_set: "65" }  # NIST category 3 -> ML-DSA-65
+  Dilithium5: { family: ML-DSA, parameter_set: "87" }  # NIST category 5 -> ML-DSA-87
+  CRYSTALS-Dilithium2: { family: ML-DSA, parameter_set: "44" }
+  CRYSTALS-Dilithium3: { family: ML-DSA, parameter_set: "65" }
+  CRYSTALS-Dilithium5: { family: ML-DSA, parameter_set: "87" }
+  SPHINCS+-SHA2-128s: { family: SLH-DSA, parameter_set: "SHA2-128s" }
+  SPHINCS+-SHA2-128f: { family: SLH-DSA, parameter_set: "SHA2-128f" }
+  SPHINCS+-SHAKE-128s: { family: SLH-DSA, parameter_set: "SHAKE-128s" }
+
+  # --- Concrete flat spellings: the registry groups these under abstract
+  # families (SHA-2 covers SHA-224/256/384/512; AES has no size in its own
+  # family entry) — a bare "SHA-256" or "AES-256" claim does NOT
+  # registry-exact-match, since "SHA-256" isn't itself a family name.
+  # These are what tools overwhelmingly actually emit; found while
+  # building T-015/T-016b, which need real (family, parameter_set) pairs
+  # to classify against. ---
+  SHA-224: { family: SHA-2, parameter_set: "224" }
+  SHA-256: { family: SHA-2, parameter_set: "256" }
+  SHA-384: { family: SHA-2, parameter_set: "384" }
+  SHA-512: { family: SHA-2, parameter_set: "512" }
+  SHA3-224: { family: SHA-3, parameter_set: "224" }
+  SHA3-256: { family: SHA-3, parameter_set: "256" }
+  SHA3-384: { family: SHA-3, parameter_set: "384" }
+  SHA3-512: { family: SHA-3, parameter_set: "512" }
+  SHAKE128: { family: SHA-3, parameter_set: "128" }
+  SHAKE256: { family: SHA-3, parameter_set: "256" }
+  AES-128: { family: AES, parameter_set: "128" }
+  AES-192: { family: AES, parameter_set: "192" }
+  AES-256: { family: AES, parameter_set: "256" }
+  RSA-1024: { family: RSASSA-PKCS1, parameter_set: "1024" }
+  RSA-2048: { family: RSASSA-PKCS1, parameter_set: "2048" }
+  RSA-3072: { family: RSASSA-PKCS1, parameter_set: "3072" }
+  RSA-4096: { family: RSASSA-PKCS1, parameter_set: "4096" }
+
+  # --- Common JCA / OpenSSL spellings ---
+  ecdsa-sha2-nistp256: { family: ECDSA }
+  RSASSA-PSS: { family: RSASSA-PSS }
+  RSA-PSS: { family: RSASSA-PSS }
+  RSA/ECB/OAEPWithSHA-256AndMGF1Padding: { family: RSAES-OAEP }
+  RSA/ECB/PKCS1Padding: { family: RSAES-PKCS1 }
+  AES/GCM/NoPadding: { family: AES, parameter_set: null }
+  AES/CBC/PKCS5Padding: { family: AES, parameter_set: null }
+  AES-GCM: { family: AES }
+  AES-CBC: { family: AES }
+  Ed25519ph: { family: EdDSA }
+  Ed448ph: { family: EdDSA }
+
+curves:
+  # T-015c — the registry itself does not cross-reference these the way
+  # it does for P-256/secp256r1/prime256v1.
+  X25519: Curve25519
+  x25519: Curve25519
+  curve25519: Curve25519
+  X448: Curve448
+  x448: Curve448
+  curve448: Curve448
+  ed25519: Ed25519
+  ed448: Ed448

@@ -33,6 +33,9 @@ class RawAlgorithmClaim:
     name: str | None
     oid: str | None
     primitive: str | None = None  # self-reported, e.g. CDX algorithmProperties.primitive
+    parameter_set: str | None = (
+        None  # self-reported, e.g. CDX algorithmProperties.parameterSetIdentifier
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,7 +71,7 @@ def resolve_algorithm(
         if target is not None:
             return ResolvedAlgorithm(
                 algorithm_family=target.family,
-                parameter_set=target.parameter_set,
+                parameter_set=target.parameter_set or claim.parameter_set,
                 primitive=_resolve_primitive(claim, target.family, registry),
                 resolution_method="oid",
                 oid=claim.oid,
@@ -80,7 +83,7 @@ def resolve_algorithm(
         if family_def is not None:
             return ResolvedAlgorithm(
                 algorithm_family=family_def.family,
-                parameter_set=None,  # the registry's family entries don't carry one
+                parameter_set=claim.parameter_set,  # the registry's family entries don't carry one
                 primitive=_resolve_primitive(claim, family_def.family, registry),
                 resolution_method="registry-exact",
                 oid=claim.oid,
@@ -92,7 +95,7 @@ def resolve_algorithm(
         if target is not None:
             return ResolvedAlgorithm(
                 algorithm_family=target.family,
-                parameter_set=target.parameter_set,
+                parameter_set=target.parameter_set or claim.parameter_set,
                 primitive=_resolve_primitive(claim, target.family, registry),
                 resolution_method="alias-table",
                 oid=claim.oid,
@@ -136,15 +139,27 @@ class UnresolvedCurve:
 
 
 def resolve_curve(
-    spelling: str | None, *, registry: CryptographyRegistry
+    spelling: str | None,
+    *,
+    registry: CryptographyRegistry,
+    aliases: AliasTable | None = None,
 ) -> ResolvedCurve | UnresolvedCurve | None:
     """Returns None when no curve was claimed at all — that is not the
     same as an unresolved curve (ARCH.md §4.2's "never render 0 for not
     applicable" spirit applies here too: absence and failure are distinct
-    states, never conflated)."""
+    states, never conflated).
+
+    Checks the vendored registry first (which already cross-references
+    some aliases itself, e.g. P-256/secp256r1/prime256v1), then
+    `aliases.curve_aliases` for spellings the registry doesn't know about
+    (e.g. X25519 as a spelling of Curve25519 — T-013/T-015c)."""
     if spelling is None:
         return None
     curve_def = registry.curve(spelling)
+    if curve_def is None and aliases is not None:
+        canonical_spelling = aliases.curve_aliases.get(spelling)
+        if canonical_spelling is not None:
+            curve_def = registry.curve(canonical_spelling)
     if curve_def is None:
         return UnresolvedCurve(raw_name=spelling, reason="not found in the vendored registry")
     return ResolvedCurve(canonical=curve_def.canonical, resolution_method="registry")

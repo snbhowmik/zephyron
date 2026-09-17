@@ -27,6 +27,13 @@ class AliasTarget:
 class AliasTable:
     by_oid: Mapping[str, AliasTarget]
     by_name: Mapping[str, AliasTarget]
+    curve_aliases: Mapping[str, str]
+    """spelling -> the registry's own curve name (T-015c). Needed because
+    the vendored registry cross-references some curve aliases itself
+    (P-256/secp256r1/prime256v1) but not others — X25519 is *not* listed
+    as an alias of Curve25519 in the vendored data, found while building
+    T-013's real dataset. `resolve_curve` checks this overlay when the
+    registry's own `curve_by_spelling` doesn't recognise a spelling."""
 
     @staticmethod
     def from_dict(data: Mapping[str, Any]) -> AliasTable:
@@ -38,6 +45,8 @@ class AliasTable:
         names:
           Kyber768: { family: ML-KEM, parameter_set: "768" }
           EC: { family: ECDSA }
+        curves:
+          X25519: Curve25519
         ```
         """
 
@@ -50,4 +59,5 @@ class AliasTable:
         return AliasTable(
             by_oid=_targets(data.get("oids", {})),
             by_name=_targets(data.get("names", {})),
+            curve_aliases=dict(data.get("curves", {})),
         )

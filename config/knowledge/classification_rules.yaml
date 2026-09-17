@@ -1,0 +1,70 @@
+# T-015. Invariant I1 (CLAUDE.md §2) — table-driven finding classification.
+# ARCH.md §7.1 is the authority this file encodes; do not hand-edit a rule
+# here without updating that section's prose to match, and vice versa.
+#
+# Precedence when more than one rule could apply (ARCH.md §7.1): classical
+# wins over quantum — "the attack works today". An asset matching both
+# classical_weak_key_size_threshold (below the threshold) AND
+# quantum_vulnerable_families is CLASSICAL_WEAK with also_quantum_vulnerable
+# set, not QUANTUM_VULNERABLE alone (RSA-1024 is the canonical example).
+
+# Unconditional — always classical-weak regardless of any parameter.
+classical_weak_unconditional_families:
+  - MD5
+  - SHA-1
+  - DES
+  - 3DES
+  - RC4
+
+# Shor-breakable. Some of these ALSO have a classical_weak_key_size_threshold
+# below — checked first per the precedence rule above.
+quantum_vulnerable_families:
+  - RSASSA-PKCS1
+  - RSASSA-PSS
+  - RSA-X931
+  - RSAES-PKCS1
+  - RSAES-OAEP
+  - DSA
+  - FFDH
+  - ECDH
+  - ECDSA
+  - EdDSA
+  - ElGamal
+  - SM2 # ECC-based — Shor-breakable the same as any other elliptic-curve scheme
+
+# family -> minimum bit-length parameter_set to NOT also be classical-weak.
+# Below this, a quantum-vulnerable family is classical-weak too.
+classical_weak_key_size_threshold:
+  RSASSA-PKCS1: 2048
+  RSASSA-PSS: 2048
+  RSA-X931: 2048
+  RSAES-PKCS1: 2048
+  RSAES-OAEP: 2048
+  FFDH: 2048
+  DSA: 2048
+
+# Halved effective strength under Grover — informational, never "migrate
+# now" (invariant I1). Exact (family, parameter_set) matches only.
+grover_affected:
+  - family: AES
+    parameter_set: "128"
+
+# Unconditional quantum-safe.
+quantum_safe_families:
+  - ML-KEM
+  - ML-DSA
+  - SLH-DSA
+  - LMS
+  - XMSS
+
+# family -> minimum parameter_set (bits) that counts as quantum-safe.
+# AES-128 is handled by grover_affected above, not here — this threshold
+# is deliberately exclusive of it. SHA-2 below 384 (i.e. SHA-256) is
+# neither grover_affected nor quantum_safe in ARCH.md §7.1's table — it
+# falls through to UNKNOWN, not silently assumed safe (invariant I8).
+# SHA-3 has no stated minimum in ARCH.md §7.1 ("SHA3-*") — every SHA-3
+# output size is treated as quantum-safe.
+quantum_safe_symmetric_threshold:
+  AES: 256
+  SHA-2: 384
+  SHA-3: 0

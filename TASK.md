@@ -41,15 +41,15 @@ gets its own fixture coverage when T-014 lands.)
 | x | T-010 ★ | Domain model per `ARCH.md §4`. Frozen dataclasses, full type coverage, zero I/O. | T-004 |
 | x | T-011 ★ | Vendor the CycloneDX 1.7 JSON schema and the Cryptography Registry into `config/knowledge/cdx-crypto-registry/` at a pinned version. Document how to refresh. | T-001 |
 | x | T-012 ★ | `normalize/registry.py` — resolve any algorithm spelling to canonical `(family, parameter_set, curve, primitive)`. Resolution order: OID → registry exact → alias table → UNKNOWN. Never drop silently. | T-010, T-011 |
-| ☐ | T-013 ★ | `config/knowledge/aliases.yaml` — first 60 aliases covering what the tools actually emit. Include pre-standardisation PQC names (`Kyber768` → `ML-KEM-768`). | T-012 |
-| ☐ | T-014 ★ | CycloneDX version normalisation: ingest 1.4–1.7 → canonical 1.7. Preserve `evidence.occurrences[]` and `evidence.identity[].methods[]`. | T-012 |
-| ☐ | T-015 ★ | `classify.py` — the four finding classes (invariant I1). **Table-driven, from config, not hardcoded branches.** Property test: no symmetric algorithm ever lands in `QUANTUM_VULNERABLE`. | T-012 |
-| ☐ | T-015a ★ | **Invariant I8 enforcement.** `UNKNOWN` is a first-class class with its own aggregate. Property test: no `UNKNOWN` asset ever contributes to a safe/none count, in any aggregate, at any layer. A second test asserts the UI colour token for `UNKNOWN` is never the safe token. | T-015 |
-| ☐ | T-015b ★ | **Golden test: PQC OID resolution (A-19).** Every OID in the NIST ML-KEM / ML-DSA / SLH-DSA arcs resolves to a named parameter set and classifies `QUANTUM_SAFE`, never `UNKNOWN`. Verify each mapping against the vendored registry — do not hand-write from memory. | T-012 |
-| ☐ | T-015c ★ | **Curve canonicalisation stage (A-18)** before identity hashing, with an alias-corpus test: `secp256r1` / `prime256v1` / `P-256` / `NIST P-256` / `1.2.840.10045.3.1.7` must collapse to one identity. | T-012 |
-| ☐ | T-016a ★ | `MigrationAuthority` derivation per `ARCH.md §4.1` (invariant I9), with `authority_basis` recorded. Property test: a cert chaining to a public root whose every locus is third-party software never enters the roadmap. | T-010 |
-| ☐ | T-016b | **Data-quality queue (A-13).** Implausible modulus lengths, `0-bit` keys and filename-shaped algorithm names are routed to triage, never to a chart. Regression fixtures drawn from the failure modes in `IDEATION.md §2.2b`. | T-012 |
-| ☐ | T-016 ★ | Function classification: map every algorithm to a `CryptoFunction`. Drives Mosca — invariant I2. | T-012 |
+| x | T-013 ★ | `config/knowledge/aliases.yaml` — first 60 aliases covering what the tools actually emit. Include pre-standardisation PQC names (`Kyber768` → `ML-KEM-768`). | T-012 |
+| x | T-014 ★ | CycloneDX version normalisation: ingest 1.4–1.7 → canonical 1.7. Preserve `evidence.occurrences[]` and `evidence.identity[].methods[]`. | T-012 |
+| x | T-015 ★ | `classify.py` — the four finding classes (invariant I1). **Table-driven, from config, not hardcoded branches.** Property test: no symmetric algorithm ever lands in `QUANTUM_VULNERABLE`. | T-012 |
+| x | T-015a ★ | **Invariant I8 enforcement.** `UNKNOWN` is a first-class class with its own aggregate. Property test: no `UNKNOWN` asset ever contributes to a safe/none count, in any aggregate, at any layer. A second test asserts the UI colour token for `UNKNOWN` is never the safe token. | T-015 |
+| x | T-015b ★ | **Golden test: PQC OID resolution (A-19).** Every OID in the NIST ML-KEM / ML-DSA / SLH-DSA arcs resolves to a named parameter set and classifies `QUANTUM_SAFE`, never `UNKNOWN`. Verify each mapping against the vendored registry — do not hand-write from memory. | T-012 |
+| x | T-015c ★ | **Curve canonicalisation stage (A-18)** before identity hashing, with an alias-corpus test: `secp256r1` / `prime256v1` / `P-256` / `NIST P-256` / `1.2.840.10045.3.1.7` must collapse to one identity. | T-012 |
+| x | T-016a ★ | `MigrationAuthority` derivation per `ARCH.md §4.1` (invariant I9), with `authority_basis` recorded. Property test: a cert chaining to a public root whose every locus is third-party software never enters the roadmap. | T-010 |
+| x | T-016b | **Data-quality queue (A-13).** Implausible modulus lengths, `0-bit` keys and filename-shaped algorithm names are routed to triage, never to a chart. Regression fixtures drawn from the failure modes in `IDEATION.md §2.2b`. | T-012 |
+| x | T-016 ★ | Function classification: map every algorithm to a `CryptoFunction`. Drives Mosca — invariant I2. | T-012 |
 
 ---
 
