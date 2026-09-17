@@ -22,17 +22,19 @@ database. CI is green. A contributor can clone and be productive in 10 minutes.
 | x | T-001 ★ | Repo skeleton per `CLAUDE.md §3`. `uv` + `pnpm` workspaces, Makefile, `.editorconfig`. | — |
 | x | T-002 ★ | `docker-compose.yml`: postgres 16, redis, minio. `make dev` brings them up healthy. | T-001 |
 | x | T-003 ★ | CI: ruff, mypy strict on `packages/core`, biome, pytest, vitest. Fails on any error. | T-001 |
-| ☐ | T-004 ★ | `tests/test_architecture.py` — import-inspection test enforcing that `packages/core` imports no framework, no I/O library, and nothing from `collectors/`. | T-001 |
-| ☐ | T-005 | `docs/THIRD_PARTY.md` with every scanner's licence. Note Opengrep LGPL-2.1 → separate process only. | T-001 |
-| ☐ | T-006 ★ | `config/scanners.yaml` pinning every scanner image by digest. `make scanners-pull`. **cdxgen: pin `@cdxgen/cdxgen` (renamed from `@cyclonedx/cdxgen` in v13 — the old scope is fix-only); build with `--ignore-scripts --min-release-age=2`.** | T-002 |
+| x | T-004 ★ | `tests/test_architecture.py` — import-inspection test enforcing that `packages/core` imports no framework, no I/O library, and nothing from `collectors/`. | T-001 |
+| x | T-005 | `docs/THIRD_PARTY.md` with every scanner's licence. Note Opengrep LGPL-2.1 → separate process only. | T-001 |
+| x | T-006 ★ | `config/scanners.yaml` pinning every scanner image by digest. `make scanners-pull`. **cdxgen: pin `@cdxgen/cdxgen` (renamed from `@cyclonedx/cdxgen` in v13 — the old scope is fix-only); build with `--ignore-scripts --min-release-age=2`.** | T-002 |
 
 ---
 
 ## Phase 1 — Domain model and normalisation
 
-**Exit criteria:** a hand-written CycloneDX 1.6 CBOM and a cdxgen 1.7 CBOM both
+**Exit criteria:** a hand-written CycloneDX 1.7 CBOM and a cdxgen 1.7 CBOM both
 normalise into identical canonical `CryptoAsset` objects for the same
-underlying algorithm.
+underlying algorithm. (Legacy 1.4–1.6 input ingestion is still built per
+`ARCH.md §5.1`/T-014 — it's just not gated into this phase's exit bar; it
+gets its own fixture coverage when T-014 lands.)
 
 | | ID | Task | Blocked by |
 |---|---|---|---|

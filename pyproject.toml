@@ -45,6 +45,7 @@ dev = [
     "pytest-cov>=6.0",
     "ruff>=0.7",
     "mypy>=1.13",
+    "pyyaml>=6.0",  # scripts/pull_scanners.py (T-006) — explicit, not transitive
 ]
 
 [tool.ruff]

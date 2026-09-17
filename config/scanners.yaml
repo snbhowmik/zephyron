@@ -1,0 +1,87 @@
+# T-006. Every scanner pinned by digest (SECURITY.md §3 — "digests, not
+# tags; a tag is a mutable pointer to code we will execute with a
+# filesystem mounted"). `make scanners-pull` reads this file.
+#
+# Digests below were verified live against each registry's anonymous OCI
+# API on 2026-09-18 (not carried forward from documentation or memory).
+# Re-verify before relying on this file after that date — a digest is
+# exact for the moment it was pulled, not forever.
+
+# --- Upstream-published container images, pulled and pinned as-is ---
+container_images:
+  source_scan.cdxgen:
+    image: ghcr.io/cdxgen/cdxgen
+    digest: sha256:1d4418545662790662567f96af62bf0f8a444eb552bf2c4cb7b35eb0a7d6234e
+    verified_tag: latest
+    licence: Apache-2.0
+    verified_on: 2026-09-18
+
+  sbom.syft:
+    image: ghcr.io/anchore/syft
+    digest: sha256:500e2d872ac019436926e8322b4fc1f39441d94d21f6f4046c6ff29b30e8cb02
+    verified_tag: latest
+    licence: Apache-2.0
+    verified_on: 2026-09-18
+
+  container.theia:
+    image: ghcr.io/cbomkit/cbomkit-theia
+    digest: sha256:46a72eadc9849b919fc4c72e1c851f9783e03c35db8fad49ba99341ac97f8dea
+    verified_tag: latest
+    licence: Apache-2.0
+    verified_on: 2026-09-18
+    note: >
+      Also invoked agent-side via its `dir` command for tls.store
+      (ARCH.md §2.2, §3a) — same image, same digest, different invocation.
+
+# --- QAVACH-built wrapper images: no suitable upstream image exists, so we
+# build and pin our own. Not yet built — each references the task that
+# builds it. Do NOT invent a digest for these; leave them unset until the
+# task lands, per the "honest stub" rule (NOTE.md §4.4). ---
+qavach_built_images:
+  source_scan.opengrep:
+    upstream: opengrep/opengrep
+    upstream_licence: LGPL-2.1
+    reason: >
+      No official container image published (no Dockerfile, no image
+      publish workflow, verified against the live repo 2026-09-18).
+      Separate-process-only per NFR-10 — never linked or vendored.
+    built_by: T-037
+    digest: null
+
+  source_scan.cbomkit:
+    upstream: cbomkit/cbomkit-lib
+    upstream_licence: Apache-2.0
+    build_dependency: com.ibm:sonar-cryptography-plugin (GitHub Packages — PAT
+      resolved once at QAVACH's own image-build time, never at scan time;
+      see NOTE.md §3.2)
+    reason: >
+      cbomkit-lib is a library, not a published container. QAVACH builds
+      the target repo first (when --allow-build-resolution is set) then
+      scans with jar/class paths, matching cbomkit-action's sequencing.
+    built_by: T-038
+    digest: null
+
+  ad.adcs:
+    upstream: ly4k/Certipy
+    upstream_licence: MIT
+    reason: >
+      Certipy is typically pip-installed, not container-distributed.
+      secure-77/Certipy-Docker exists but is unlicensed and stale (last
+      push 2024-03-28) — do not depend on it. Build our own minimal wrapper
+      pinning `pip install certipy-ad==<version>`.
+    built_by: T-045
+    digest: null
+
+# --- Agent-side release artefacts (ARCH.md §3a): not containers at all —
+# the agent has no Docker/Podman available on the target host. Pinned by
+# release version + published checksum instead of a digest. ---
+agent_artifacts:
+  tls.store.certfinder:
+    repo: krisiasty/certfinder
+    version: v0.7.0
+    licence: Apache-2.0
+    linux_amd64_sha256: cb59af8f99efc34efce6fa2f918da54a79a44b8c5cae49f3e2de586ca5614a85
+    verified_on: 2026-09-18
+    note: >
+      22-commit history at time of adoption (NOTE.md §7) — re-check
+      maintenance status before pinning a new version.

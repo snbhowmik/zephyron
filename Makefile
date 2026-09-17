@@ -49,11 +49,7 @@ schema-check: ## validate sample CBOMs against CycloneDX 1.7
 	@echo "No vendored schema yet — see TASK.md T-011 and T-091." >&2; exit 1
 
 scanners-pull: ## pull pinned scanner container images
-	@if [ -f config/scanners.yaml ]; then \
-		echo "TODO: pull every digest in config/scanners.yaml"; \
-	else \
-		echo "config/scanners.yaml does not exist yet — see TASK.md T-006." >&2; exit 1; \
-	fi
+	ENGINE=$(ENGINE) uv run python3 scripts/pull_scanners.py
 
 demo: ## seed the demo dataset and open the UI
 	@echo "No demo dataset yet — see TASK.md T-120." >&2; exit 1
