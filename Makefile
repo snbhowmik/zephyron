@@ -34,9 +34,19 @@ test: test-unit ## pytest (unit) + pytest (integration, if services are up) + vi
 test-unit: ## pytest packages/ -m "not integration"  (no services needed)
 	uv run pytest -m "not integration"
 
-lint: ## ruff + mypy + biome
+lint: ## ruff + mypy (strict on packages/core, standard elsewhere it exists) + biome
 	uv run ruff check .
 	uv run mypy packages/core
+	@for pkg in collectors sandbox storage; do \
+		if [ -n "$$(find packages/$$pkg/src -name '*.py' ! -name '__init__.py' 2>/dev/null)" ]; then \
+			uv run mypy packages/$$pkg/src/qavach_$$pkg; \
+		fi; \
+	done
+	@for app in api worker agent; do \
+		if [ -n "$$(find apps/$$app/src -name '*.py' ! -name '__init__.py' 2>/dev/null)" ]; then \
+			uv run mypy apps/$$app/src/qavach_$$app; \
+		fi; \
+	done
 	@if [ -f apps/web/package.json ]; then pnpm --filter web lint; \
 	else echo "apps/web not yet scaffolded — biome lint skipped (TASK.md T-100)."; fi
 

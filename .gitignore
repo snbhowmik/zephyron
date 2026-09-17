@@ -32,3 +32,7 @@ apps/web/dist/
 # QAVACH-generated (raw scanner output, exports — SECURITY.md §5)
 /scan-output/
 /exports/
+
+# Test scratch dirs (sandbox integration tests need a real bind-mountable
+# host path — T-031)
+.scratch-target/

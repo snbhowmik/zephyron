@@ -144,8 +144,19 @@ docker run --rm
 - **`--network=none` by default.** A collector that needs network declares
   `requires_network = True` and gets an explicit egress allowlist. Nothing gets
   unrestricted egress.
-- **Output crosses the boundary as one JSON file** on the tmpfs mount. Nothing
-  else. The worker never reads arbitrary paths the scanner wrote.
+- **Output crosses the boundary as the container's stdout** — one JSON blob,
+  captured with `docker logs` after the container exits, before it is
+  removed. `/work` is scratch space for anything the scanner needs to write
+  along the way, still `noexec,nosuid,nodev`; it is not the retrieval
+  channel. (Verified live, T-031: a `--tmpfs` mount is torn down the moment
+  its container *stops*, not when it is `rm`'d — `docker cp
+  <container>:/work/result.json` 404s against an already-exited container
+  even with the container object still present. `docker logs` has no such
+  gap, because the log driver captures the stream continuously while the
+  process runs, independent of the filesystem. A collector that produces a
+  file needs a command that ends by printing it, e.g. `scanner -o
+  /work/bom.json && cat /work/bom.json`.) The worker never reads arbitrary
+  paths the scanner wrote — stdout is the only channel data crosses on.
 - **Timeout enforced by the orchestrator**, not by the container. Default 900s.
   A hung scanner is a failed collector (`partial=True`), not a hung scan.
 - **Failure is isolated.** A crashed, OOM-killed or timed-out collector

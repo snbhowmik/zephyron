@@ -80,8 +80,8 @@ failure rather than an exception escaping.
 
 | | ID | Task | Blocked by |
 |---|---|---|---|
-| ☐ | T-030 ★ | `Collector` protocol + registry + `CollectorResult`. | T-010 |
-| ☐ | T-031 ★ | **Sandbox runner** per `SECURITY.md §3`: per-job container, `--network=none`, non-root, read-only rootfs, tmpfs, cgroup limits, timeout. Every sandboxed collector goes through this — no exceptions, no bypass flag. | T-030, T-002 |
+| x | T-030 ★ | `Collector` protocol + registry + `CollectorResult`. | T-010 |
+| ☒ | T-031 ★ | **Sandbox runner** per `SECURITY.md §3`: per-job container, `--network=none`, non-root, read-only rootfs, tmpfs, cgroup limits, timeout. Every sandboxed collector goes through this — no exceptions, no bypass flag. | T-030, T-002 |
 | ☐ | T-031a ★ | **Agent runtime** (`ARCH.md §3a`): outbound-poll loop, mTLS client, enrollment-token exchange, typed scan-spec protocol (paths + collector modules, no command execution). Packaged as a single-file Python bundle (PyInstaller); **needs a per-OS CI build matrix, not a cross-compile step** — PyInstaller does not cross-compile, confirmed against GRR Rapid Response's own build pipeline. | T-030 |
 | ☐ | T-031b ★ | **Resource-limited parsing worker** used by every agent-mode collector (`ARCH.md §3a`, "Containment for hostile input"): fork/subprocess per fetched file, `resource.setrlimit` (CPU, address space, output size) plus a wall-clock timeout, dropped to the most restricted account reachable, kill-and-mark-`partial` on breach. | T-031a |
 | ☐ | T-032 ★ | cdxgen `cbom` adapter. Build resolution **off** by default; `--allow-build-resolution` with egress allowlist and a printed warning. | T-031 |
