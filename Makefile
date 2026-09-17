@@ -1,19 +1,30 @@
-.PHONY: dev test test-unit lint fmt schema-check scanners-pull demo sync
+.PHONY: dev dev-down dev-logs test test-unit lint fmt schema-check scanners-pull demo sync
 
 # CLAUDE.md §5. Targets below are real where the underlying task has landed;
 # where it hasn't, the target says so explicitly and names the blocking task
 # rather than silently doing nothing (NOTE.md §4.4's "honest stub" rule).
 
+# Docker or Podman, kept swappable (CLAUDE.md §4): `make dev ENGINE=podman`.
+ENGINE ?= docker
+COMPOSE := $(ENGINE) compose
+
 sync: ## Install the whole Python workspace + JS workspace into local envs.
 	uv sync
 	pnpm install
 
-dev: ## postgres + redis + minio, then API :8000 and web :5173
-	@if [ -f docker-compose.yml ]; then \
-		docker compose up -d postgres redis minio; \
-	else \
-		echo "docker-compose.yml does not exist yet — see TASK.md T-002." >&2; exit 1; \
-	fi
+dev: ## postgres + redis + minio (--wait for health), then API :8000 and web :5173
+	$(COMPOSE) up -d --wait postgres redis minio
+	@echo "postgres/redis/minio are up and healthy."
+	@if [ -f apps/api/src/qavach_api/main.py ]; then echo "TODO: start API :8000 (T-073)."; \
+	else echo "API not yet implemented — see TASK.md T-073."; fi
+	@if [ -f apps/web/package.json ]; then echo "TODO: start web :5173 (T-100)."; \
+	else echo "web not yet scaffolded — see TASK.md T-100."; fi
+
+dev-down: ## Stop and remove the dev infrastructure containers.
+	$(COMPOSE) down
+
+dev-logs: ## Tail logs from the dev infrastructure containers.
+	$(COMPOSE) logs -f postgres redis minio
 
 test: test-unit ## pytest (unit) + pytest (integration, if services are up) + vitest
 	@uv run pytest -m integration || echo "Integration tests skipped or failed — needs 'make dev' (T-002)."

@@ -20,8 +20,8 @@ database. CI is green. A contributor can clone and be productive in 10 minutes.
 | | ID | Task | Blocked by |
 |---|---|---|---|
 | x | T-001 ★ | Repo skeleton per `CLAUDE.md §3`. `uv` + `pnpm` workspaces, Makefile, `.editorconfig`. | — |
-| ☐ | T-002 ★ | `docker-compose.yml`: postgres 16, redis, minio. `make dev` brings them up healthy. | T-001 |
-| ☐ | T-003 ★ | CI: ruff, mypy strict on `packages/core`, biome, pytest, vitest. Fails on any error. | T-001 |
+| x | T-002 ★ | `docker-compose.yml`: postgres 16, redis, minio. `make dev` brings them up healthy. | T-001 |
+| x | T-003 ★ | CI: ruff, mypy strict on `packages/core`, biome, pytest, vitest. Fails on any error. | T-001 |
 | ☐ | T-004 ★ | `tests/test_architecture.py` — import-inspection test enforcing that `packages/core` imports no framework, no I/O library, and nothing from `collectors/`. | T-001 |
 | ☐ | T-005 | `docs/THIRD_PARTY.md` with every scanner's licence. Note Opengrep LGPL-2.1 → separate process only. | T-001 |
 | ☐ | T-006 ★ | `config/scanners.yaml` pinning every scanner image by digest. `make scanners-pull`. **cdxgen: pin `@cdxgen/cdxgen` (renamed from `@cyclonedx/cdxgen` in v13 — the old scope is fix-only); build with `--ignore-scripts --min-release-age=2`.** | T-002 |

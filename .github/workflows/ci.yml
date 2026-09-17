@@ -1,0 +1,53 @@
+name: CI
+
+# T-003. Runs the exact same commands a contributor runs locally (Makefile)
+# so "green in CI" and "green on my machine" never diverge. No Docker,
+# Postgres or network required — CLAUDE.md §5's test-unit contract.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.12.15"
+          python-version: "3.12"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "12.4.2"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Verify lockfiles are not stale
+        run: |
+          uv lock --check
+          pnpm install --frozen-lockfile
+
+      - name: Install Python workspace
+        run: uv sync
+
+      - name: Install JS workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: make lint
+        run: make lint
+
+      - name: make test-unit
+        run: make test-unit
