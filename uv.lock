@@ -1198,8 +1198,10 @@ name = "qavach-agent"
 version = "0.1.0"
 source = { editable = "apps/agent" }
 dependencies = [
+    { name = "cryptography" },
     { name = "httpx" },
     { name = "qavach-collectors" },
+    { name = "qavach-core" },
 ]
 
 [package.dev-dependencies]
@@ -1209,8 +1211,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=43" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "qavach-collectors", editable = "packages/collectors" },
+    { name = "qavach-core", editable = "packages/core" },
 ]
 
 [package.metadata.requires-dev]
