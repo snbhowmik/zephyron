@@ -1,0 +1,23 @@
+[project]
+name = "qavach-api"
+version = "0.1.0"
+description = "FastAPI service — HTTP + WebSocket transport only, zero business logic. See ARCH.md §12."
+requires-python = ">=3.12"
+dependencies = [
+    "qavach-core",
+    "qavach-storage",
+    "fastapi>=0.115",
+    "pydantic>=2.9",
+    "uvicorn[standard]>=0.32",
+]
+
+[tool.uv.sources]
+qavach-core = { workspace = true }
+qavach-storage = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qavach_api"]

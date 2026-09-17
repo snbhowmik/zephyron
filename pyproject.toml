@@ -1,0 +1,66 @@
+[project]
+name = "qavach"
+version = "0.1.0"
+description = "Cryptographic Asset Inventory and PQC migration decision system. See CLAUDE.md."
+requires-python = ">=3.12"
+dependencies = [
+    "qavach-core",
+    "qavach-collectors",
+    "qavach-sandbox",
+    "qavach-storage",
+    "qavach-api",
+    "qavach-worker",
+    "qavach-agent",
+]
+
+# Virtual workspace root: no source of its own, just pulls every member into
+# one venv so `uv sync` at the repo root installs the whole monorepo.
+[tool.uv]
+package = false
+default-groups = ["dev"]
+
+[tool.uv.workspace]
+members = [
+    "packages/core",
+    "packages/collectors",
+    "packages/sandbox",
+    "packages/storage",
+    "apps/api",
+    "apps/worker",
+    "apps/agent",
+]
+
+[tool.uv.sources]
+qavach-core = { workspace = true }
+qavach-collectors = { workspace = true }
+qavach-sandbox = { workspace = true }
+qavach-storage = { workspace = true }
+qavach-api = { workspace = true }
+qavach-worker = { workspace = true }
+qavach-agent = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.7",
+    "mypy>=1.13",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# T-003 wires this into CI, scoped to packages/core first (CLAUDE.md §5).
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "packages", "apps"]
+markers = [
+    "integration: requires Docker/Postgres/network (excluded from `make test-unit`)",
+]

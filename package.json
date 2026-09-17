@@ -1,0 +1,13 @@
+{
+  "name": "qavach",
+  "private": true,
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "pnpm -r --if-present run lint",
+    "fmt": "pnpm -r --if-present run fmt",
+    "test": "pnpm -r --if-present run test"
+  }
+}
