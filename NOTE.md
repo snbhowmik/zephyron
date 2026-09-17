@@ -521,6 +521,26 @@ hybrid-group negotiation, would cut real code at the cost of a GPLv2 line in
 `docs/THIRD_PARTY.md`. Not decided; a `TASK.md` item before Phase 3
 implementation, not a silent default to full custom-build.
 
+**MODEL-01 — What is the exact shape of a `Dispute` record?** `ARCH.md §6.4`
+describes dispute behaviour in prose (per-attribute, retains every
+conflicting claim, "silence is not a claim") but never gives a concrete
+dataclass the way it does for `CryptoAsset`/`Occurrence`. T-010 implemented
+the smallest defensible shape — `Dispute(attribute, claims: tuple[
+AttributeClaim, ...], adjudicated_value, adjudicated_by, adjudicated_at)`,
+with `AttributeClaim(value, source_collector, confidence, locus)` — marked
+`# QAVACH-OPEN: MODEL-01` in `packages/core/src/qavach_core/model/dispute.py`.
+Revisit when T-023 (dispute detection) is built; real merge code may want a
+different structure.
+
+**MODEL-02 — What are `System.data_classification`'s actual levels?**
+`ARCH.md §4` and `PRD.md FR-251` both require the field but neither
+enumerates it. T-010 shipped `DataClass` with four common enterprise tiers
+(public/internal/confidential/restricted) as a placeholder, marked
+`# QAVACH-OPEN: MODEL-02` in `packages/core/src/qavach_core/model/system.py`.
+Revisit once a real customer's taxonomy — or a regulatory one, e.g. an
+RBI/SEBI data-classification circular — is known; FR-252's retention-inference
+table will need to key off whatever this becomes.
+
 **~~OQ-09~~ — RESOLVED 2026-09-17. See `ARCH.md §6.2`.**
 `Locus`'s `FileLocus(path, offset)` has no host field — fine for a local mount
 where the target is implicit, but wrong for agent-collected evidence, which
@@ -578,6 +598,9 @@ re-derive. Do not log routine work.
 | 2026-09-17 | Re-verified Syft (no native crypto capability, purl-mapping layer still required) and Grype (still pure CVE/vulnerability scanning, no crypto-asset capability) against their live repos — both confirm the existing decisions (`NOTE.md §3.4`, §3.5) unchanged | `NOTE.md §3.4`, §3.5 |
 | 2026-09-17 | Re-verified Opengrep (LGPL-2.1, Semgrep v1.100.0 fork, SARIF confirmed — no changes) and CBOMkit-theia against live repos. Theia is under-documented in our own spec: standalone (no GitHub-Packages dependency, unlike `cbomkit-lib`), runs on directories as well as images, and ships `secrets`/`javasecurity`/`opensslconf`/`problematicca` plugins beyond bare certificate discovery — its `certificates` plugin is PEM/DER only, so it stays complementary to certfinder's JKS/PKCS12 coverage, not redundant | `ARCH.md §2.2` |
 | 2026-09-17 | `tls.store` (agent-side) now also invokes CBOMkit-theia's `dir` command alongside certfinder — free, additive coverage (secrets, OpenSSL config, known-bad-CA flagging), both Apache-2.0, no new credential cost | `ARCH.md §2.2`, `TASK.md` T-036 |
+| 2026-09-18 | **T-011 done.** Vendored 5 files from `CycloneDX/specification` tag `1.7.2` (commit `349314a`), not just the main schema — `bom-1.7.schema.json` `$ref`s `cryptography-defs.schema.json`, `jsf-0.82.schema.json` and `spdx.schema.json` by relative filename; vendoring only the main file would have silently needed the network (or failed) on first real validation, breaking invariant I7. Verified genuinely offline: `socket.socket` replaced with a function that raises, then a real ML-KEM-768 component validated successfully and a malformed document was correctly rejected — codified as `tests/test_cdx_registry.py`, not a one-off check. **Important finding for T-012:** `cryptography-defs.json` has no OID→family lookup table, only canonical names/patterns — OID resolution (§5.2 step 1) needs a separate NIST-sourced table, this vendored file only covers steps 2–3 | `config/knowledge/cdx-crypto-registry/`, `tests/test_cdx_registry.py` |
+| 2026-09-18 | **T-010 done.** Domain model implemented per `ARCH.md §4` as `src`-layout submodules (`model/{enums,locus,identity,dispute,asset,system}.py`). Two things ARCH.md never gives a concrete shape for — `Dispute`'s exact fields and `System.data_classification`'s enum levels — got the smallest defensible implementation, marked `# QAVACH-OPEN: MODEL-01`/`MODEL-02` in code and logged in `NOTE.md §6`, rather than silently guessed. `CryptoAsset`/`System` carry light `__post_init__` validation (occurrences non-empty, disputed⇒disputes non-empty, criticality 1..5, retention_years ≥ 0) — correctness checks, not I/O, so they stay inside T-004's zero-I/O contract. 40/40 tests pass, mypy strict clean on 13 source files | `packages/core/src/qavach_core/model/`, `tests/core/test_model.py` |
+| 2026-09-18 | **ruff config gap fixed before it caused damage.** ruff 0.16+ formats Python code blocks embedded in Markdown by default — `ruff format .` was about to rewrite ARCH.md/CLAUDE.md's hand-aligned pseudocode examples. Added `extend-exclude = ["*.md"]`. Caught during T-010, before `make fmt` was ever run unscoped; no doc file was actually touched | `pyproject.toml` |
 | 2026-09-18 | **T-005 done.** `docs/THIRD_PARTY.md` — verifying licences live caught a real error in the draft: Redis is tri-licensed (RSALv2/SSPLv1/AGPLv3) **only starting at Redis 8**; `redis:7-alpine` (what `docker-compose.yml` actually pins) is still BSD-3-Clause. Would have shipped an incorrect licence claim if not checked against the live `LICENSE.txt` instead of general knowledge | `docs/THIRD_PARTY.md` |
 | 2026-09-18 | **T-006 done.** `config/scanners.yaml` pins real, live-verified digests for the three upstream-published images (cdxgen, syft, cbomkit-theia); the three QAVACH-must-build wrappers (opengrep, cbomkit-lib, certipy) are left `digest: null` naming the building task, not faked. `scripts/pull_scanners.py` verified end-to-end — all three real images pulled successfully by exact digest. **`ghcr.io/cdxgen/cdxgen` is 15.5GB** (bundles a Java+Node toolchain) — worth knowing before T-032 (adapter) or T-123 (air-gap bundle) budgets pull time/storage | `config/scanners.yaml`, `scripts/pull_scanners.py` |
 | 2026-09-18 | **T-004 done.** `tests/test_architecture.py` uses **default-deny AST inspection**, not "try to import qavach_core and see if it raises." The latter would not catch a violation: this is a shared workspace venv, so FastAPI/SQLAlchemy are genuinely installed for sibling packages and a stray `import fastapi` in core would succeed at runtime. Every absolute import is classified as self / stdlib-pure / stdlib-io / allowed-third-party / forbidden, with the third-party allowlist starting **empty** (matches `packages/core/pyproject.toml`'s zero declared deps) — this also subsumes "nothing from collectors" for free, since `qavach_collectors` isn't stdlib and isn't allowlisted. Verified the detection logic actually fires by injecting `import fastapi` into a real core file, confirming the test failed with a correct file:line message, then reverting | `tests/test_architecture.py` |
