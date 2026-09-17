@@ -31,6 +31,9 @@ from qavach_core.model.locus import (
     NetworkLocus,
     RuntimeLocus,
     SourceLocus,
+    locus_from_dict,
+    locus_to_dict,
+    locus_type_name,
 )
 from qavach_core.model.system import DataClass, System
 
@@ -58,4 +61,7 @@ __all__ = [
     "RuntimeLocus",
     "SourceLocus",
     "System",
+    "locus_from_dict",
+    "locus_to_dict",
+    "locus_type_name",
 ]

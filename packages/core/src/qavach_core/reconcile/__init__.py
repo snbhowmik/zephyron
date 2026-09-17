@@ -10,9 +10,26 @@ from qavach_core.reconcile.authority import (
     AuthorityContext,
     derive_migration_authority,
 )
+from qavach_core.reconcile.identity import IdentityClaim, asset_identity
+from qavach_core.reconcile.merge import (
+    ConcludedAttribute,
+    MergeResult,
+    OccurrenceClaim,
+    group_by_identity,
+    merge,
+    merge_all,
+)
 
 __all__ = [
     "EXTERNALLY_SPECIFIED_CRYPTO_REGIMES",
     "AuthorityContext",
+    "ConcludedAttribute",
+    "IdentityClaim",
+    "MergeResult",
+    "OccurrenceClaim",
+    "asset_identity",
     "derive_migration_authority",
+    "group_by_identity",
+    "merge",
+    "merge_all",
 ]
