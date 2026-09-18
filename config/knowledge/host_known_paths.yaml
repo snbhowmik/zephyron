@@ -1,0 +1,99 @@
+# T-034a. ARCH.md §3a / PRD.md FR-134: the curated per-OS/per-platform
+# manifest the deployed agent auto-scans in addition to whatever explicit
+# paths the operator supplies from the dashboard. Same curation-effort
+# category as T-034's crypto_libraries.yaml — real, verifiable filesystem
+# conventions for each OS/appserver, not a stub.
+#
+# Schema, one entry per known location:
+#   platform:     linux | windows | tomcat | jboss_wildfly | weblogic |
+#                 websphere | nginx | apache_httpd | iis
+#   path:         absolute path, or a glob (`*`), or a path relative to
+#                 `relative_to` (an env var / well-known install root the
+#                 agent resolves per-instance — appserver install
+#                 locations vary by deployment, unlike OS trust-store
+#                 paths, which are fixed by distribution convention)
+#   relative_to:  present only when `path` is relative — the environment
+#                 variable or convention the agent resolves it against
+#                 (e.g. `CATALINA_BASE`, `JBOSS_HOME`, `DOMAIN_HOME`)
+#   kind:         trust_store | private_key_dir | keystore |
+#                 config_with_keystore_refs | demo_credential
+#                 (`demo_credential`: a vendor-shipped default keystore
+#                 that ships with the product and is notoriously left in
+#                 production unchanged — WebLogic's DemoIdentity.jks and
+#                 WebSphere's DummyServerKeyFile.jks are the two most
+#                 cited examples in appserver hardening guides; flagging
+#                 these by `kind` lets the risk layer treat "still using
+#                 the vendor demo cert" as its own, very loud finding)
+#
+# This is a first pass, matching T-034's own "start with N, do not stub
+# it" spirit — real, well-documented locations for the platforms PRD.md
+# FR-134 names, not an exhaustive survey of every possible install layout.
+
+paths:
+  # --- Linux: OS trust stores and private-key directories ---
+  - {platform: linux, path: /etc/ssl/certs, kind: trust_store}
+  - {platform: linux, path: /etc/ssl/private, kind: private_key_dir}
+  - {platform: linux, path: /etc/pki/tls/certs, kind: trust_store}
+  - {platform: linux, path: /etc/pki/tls/private, kind: private_key_dir}
+  - {platform: linux, path: /etc/pki/ca-trust/source/anchors, kind: trust_store}
+  - {platform: linux, path: /etc/ca-certificates, kind: trust_store}
+  - {platform: linux, path: /usr/local/share/ca-certificates, kind: trust_store}
+  - {platform: linux, path: /etc/pki/nssdb, kind: trust_store}
+  - {platform: linux, path: /etc/ipsec.d/certs, kind: trust_store}
+  - {platform: linux, path: /etc/ipsec.d/private, kind: private_key_dir}
+  - {platform: linux, path: /etc/letsencrypt/live, kind: keystore}
+  - {platform: linux, path: /etc/letsencrypt/archive, kind: keystore}
+
+  # --- Windows: file-backed key/cert material outside the CryptoAPI
+  # store itself (the store's own contents are registry-backed, not a
+  # filesystem path the agent's known-paths walk can enumerate; those are
+  # queried via a separate Windows-specific API call, not this manifest) ---
+  - {platform: windows, path: "%ProgramData%\\Microsoft\\Crypto\\RSA\\MachineKeys", kind: private_key_dir}
+  - {platform: windows, path: "%ProgramData%\\Microsoft\\Crypto\\Keys", kind: private_key_dir}
+  - {platform: windows, path: "%APPDATA%\\Microsoft\\Crypto\\RSA", kind: private_key_dir}
+  - {platform: windows, path: "%APPDATA%\\Microsoft\\SystemCertificates", kind: trust_store}
+  - {platform: windows, path: "%ProgramData%\\Microsoft\\Windows\\CertificateStores", kind: trust_store}
+
+  # --- Tomcat ---
+  - {platform: tomcat, path: "conf/server.xml", relative_to: CATALINA_BASE, kind: config_with_keystore_refs}
+  - {platform: tomcat, path: "conf/*.jks", relative_to: CATALINA_BASE, kind: keystore}
+  - {platform: tomcat, path: "conf/*.p12", relative_to: CATALINA_BASE, kind: keystore}
+  - {platform: tomcat, path: "conf/*.keystore", relative_to: CATALINA_BASE, kind: keystore}
+
+  # --- JBoss / WildFly ---
+  - {platform: jboss_wildfly, path: "standalone/configuration/standalone.xml", relative_to: JBOSS_HOME, kind: config_with_keystore_refs}
+  - {platform: jboss_wildfly, path: "standalone/configuration/standalone-ha.xml", relative_to: JBOSS_HOME, kind: config_with_keystore_refs}
+  - {platform: jboss_wildfly, path: "domain/configuration/domain.xml", relative_to: JBOSS_HOME, kind: config_with_keystore_refs}
+  - {platform: jboss_wildfly, path: "standalone/configuration/*.jks", relative_to: JBOSS_HOME, kind: keystore}
+  - {platform: jboss_wildfly, path: "standalone/configuration/*.p12", relative_to: JBOSS_HOME, kind: keystore}
+
+  # --- WebLogic ---
+  - {platform: weblogic, path: "config/config.xml", relative_to: DOMAIN_HOME, kind: config_with_keystore_refs}
+  - {platform: weblogic, path: "security/*.jks", relative_to: DOMAIN_HOME, kind: keystore}
+  - {platform: weblogic, path: "server/lib/DemoIdentity.jks", relative_to: WL_HOME, kind: demo_credential}
+  - {platform: weblogic, path: "server/lib/DemoTrust.jks", relative_to: WL_HOME, kind: demo_credential}
+
+  # --- WebSphere ---
+  - {platform: websphere, path: "profiles/*/config/cells/*/nodes/*/servers/*/*.jks", relative_to: WAS_HOME, kind: keystore}
+  - {platform: websphere, path: "profiles/*/config/cells/*/nodes/*/servers/*/*.p12", relative_to: WAS_HOME, kind: keystore}
+  - {platform: websphere, path: "etc/DummyServerKeyFile.jks", relative_to: WAS_HOME, kind: demo_credential}
+  - {platform: websphere, path: "etc/DummyServerTrustFile.jks", relative_to: WAS_HOME, kind: demo_credential}
+  - {platform: websphere, path: "etc/DummyClientKeyFile.jks", relative_to: WAS_HOME, kind: demo_credential}
+  - {platform: websphere, path: "etc/DummyClientTrustFile.jks", relative_to: WAS_HOME, kind: demo_credential}
+
+  # --- nginx ---
+  - {platform: nginx, path: /etc/nginx/ssl, kind: keystore}
+  - {platform: nginx, path: /etc/nginx/conf.d, kind: config_with_keystore_refs}
+  - {platform: nginx, path: /etc/nginx/sites-enabled, kind: config_with_keystore_refs}
+  - {platform: nginx, path: /etc/letsencrypt/live, kind: keystore}
+
+  # --- Apache httpd ---
+  - {platform: apache_httpd, path: /etc/httpd/conf.d, kind: config_with_keystore_refs}
+  - {platform: apache_httpd, path: /etc/apache2/sites-enabled, kind: config_with_keystore_refs}
+  - {platform: apache_httpd, path: /etc/pki/tls/certs/localhost.crt, kind: demo_credential}
+  - {platform: apache_httpd, path: /etc/ssl/certs/apache-selfsigned.crt, kind: demo_credential}
+  - {platform: apache_httpd, path: /etc/letsencrypt/live, kind: keystore}
+
+  # --- IIS (Windows) ---
+  - {platform: iis, path: "%windir%\\System32\\inetsrv\\config\\applicationHost.config", kind: config_with_keystore_refs}
+  - {platform: iis, path: "%SystemDrive%\\inetpub\\wwwroot", kind: config_with_keystore_refs}

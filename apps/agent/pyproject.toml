@@ -8,6 +8,7 @@ dependencies = [
     "qavach-core",
     "httpx>=0.27",
     "cryptography>=43",
+    "pyyaml>=6.0",
 ]
 
 [tool.uv.sources]
