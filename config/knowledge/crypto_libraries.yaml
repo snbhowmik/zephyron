@@ -1,0 +1,213 @@
+# T-034. purl -> cryptographic capability, for packages/collectors/
+# src/qavach_collectors/sbom/crypto_libraries.py (T-033) to attribute
+# capability-level RawClaims to a syft-detected dependency.
+#
+# CAPABILITY, NOT USAGE (TASK.md T-034's own requirement, non-negotiable):
+# every `provides` entry says what the library CAN do — the algorithm
+# families it implements or exposes an API for — never whether the scanned
+# codebase actually calls into that capability, and never a confidence
+# score about real-world usage. That distinction is exactly why
+# `ConfidenceTier.DEPENDENCY` sits below AST/RUNTIME in ARCH.md §2.2's
+# table: "you depend on a library that provides AES" is real evidence, but
+# weaker than "this file calls AES directly." Do not add a `used`,
+# `confidence`, or `observed` field to an entry — that would smuggle usage
+# semantics back in through the schema, defeating the entire point.
+#
+# `provides` values are algorithm FAMILY names exactly as they appear in
+# the vendored CycloneDX 1.7 Cryptography Registry
+# (config/knowledge/cdx-crypto-registry/cryptography-defs.json) — e.g.
+# "AES", "RSASSA-PKCS1", "ECDSA", "EdDSA", "ECDH", "SHA-2" (not "AES-256"
+# or "SHA-256": key size / hash width is a *parameter* of the family, not
+# a separate family, and a library capability entry is deliberately
+# coarser than that). Every value below was checked live against
+# `qavach_core.normalize.resolve_algorithm` (T-012) before being written
+# here — none of them resolve to UNKNOWN — see
+# tests/collectors/test_crypto_libraries_yaml.py, which re-checks this on
+# every test run so a future edit cannot silently introduce a family name
+# the resolve layer won't recognise.
+#
+# This is a **first pass**: TASK.md's own wording is "start with 40
+# libraries," not "build the definitive catalogue." Coverage is uneven by
+# design — well-known, widely-depended-on libraries with genuinely
+# documented capabilities, not an exhaustive survey of every crypto
+# package in four ecosystems. Extend it; do not treat an absence here as
+# "this library has no crypto capability."
+
+libraries:
+  # --- Python (pypi) ---
+  - type: pypi
+    name: cryptography
+    provides:
+      [AES, RSASSA-PKCS1, RSASSA-PSS, RSAES-OAEP, ECDSA, EdDSA, ECDH, DSA,
+       SHA-2, SHA-3, HMAC, ChaCha20, Poly1305, 3DES, Blowfish, CAMELLIA,
+       HKDF, PBKDF2, scrypt]
+  - type: pypi
+    name: pyjwt
+    provides: [HMAC, RSASSA-PKCS1, RSASSA-PSS, ECDSA, EdDSA]
+  - type: pypi
+    name: pyopenssl
+    provides: [AES, RSASSA-PKCS1, ECDSA, DSA, SHA-2, SHA-1]
+  - type: pypi
+    name: pycryptodome
+    provides:
+      [AES, DES, 3DES, RC4, RC2, Blowfish, CAST5, CAMELLIA, SM4,
+       RSASSA-PKCS1, RSAES-OAEP, ECDSA, EdDSA, DSA, SHA-2, SHA-3, HMAC,
+       ChaCha20, Poly1305, Salsa20, PBKDF2, HKDF]
+  - type: pypi
+    name: pycrypto
+    provides: [AES, DES, 3DES, RC4, Blowfish, RSASSA-PKCS1, DSA, SHA-2, HMAC, PBKDF2]
+  - type: pypi
+    name: bcrypt
+    provides: [bcrypt]
+  - type: pypi
+    name: argon2-cffi
+    provides: [Argon2]
+  - type: pypi
+    name: passlib
+    provides: [bcrypt, scrypt, Argon2, PBKDF2, MD5, SHA-2, SHA-1]
+  - type: pypi
+    name: pynacl
+    provides: [EdDSA, ECDH, ChaCha20, Poly1305, Salsa20, HMAC, Argon2, SHA-2]
+  - type: pypi
+    name: paramiko
+    provides: [RSASSA-PKCS1, ECDSA, EdDSA, DSA, AES, 3DES, ChaCha20, HMAC, SHA-2]
+  - type: pypi
+    name: ecdsa
+    provides: [ECDSA]
+  - type: pypi
+    name: rsa
+    provides: [RSASSA-PKCS1, RSAES-PKCS1]
+  - type: pypi
+    name: python-jose
+    provides: [HMAC, RSASSA-PKCS1, RSASSA-PSS, ECDSA, RSAES-OAEP]
+  - type: pypi
+    name: itsdangerous
+    provides: [HMAC, SHA-2]
+
+  # --- Java (maven) ---
+  - type: maven
+    namespace: org.bouncycastle
+    name: bcprov-jdk18on
+    provides:
+      [AES, DES, 3DES, RC4, RC2, Blowfish, CAST5, CAMELLIA, SM4,
+       RSASSA-PKCS1, RSAES-OAEP, ECDSA, EdDSA, ECDH, DSA, SHA-2, SHA-3,
+       RIPEMD, Whirlpool, GOST, HMAC, ChaCha20, Poly1305, ML-KEM, ML-DSA,
+       SLH-DSA]
+  - type: maven
+    namespace: org.bouncycastle
+    name: bcpkix-jdk18on
+    provides: [RSASSA-PKCS1, ECDSA, EdDSA]
+  - type: maven
+    namespace: com.google.crypto.tink
+    name: tink
+    provides: [AES, RSASSA-PSS, RSAES-OAEP, ECDSA, EdDSA, ECDH, HMAC, ChaCha20, Poly1305]
+  - type: maven
+    namespace: io.jsonwebtoken
+    name: jjwt-impl
+    provides: [HMAC, RSASSA-PKCS1, RSASSA-PSS, ECDSA]
+  - type: maven
+    namespace: com.auth0
+    name: java-jwt
+    provides: [HMAC, RSASSA-PKCS1, ECDSA]
+  - type: maven
+    namespace: net.i2p.crypto
+    name: eddsa
+    provides: [EdDSA]
+  - type: maven
+    namespace: org.mindrot
+    name: jbcrypt
+    provides: [bcrypt]
+  - type: maven
+    namespace: commons-codec
+    name: commons-codec
+    provides: [MD5, SHA-1, HMAC]
+  - type: maven
+    namespace: org.springframework.security
+    name: spring-security-crypto
+    provides: [AES, bcrypt, PBKDF2]
+  - type: maven
+    namespace: com.password4j
+    name: password4j
+    provides: [bcrypt, scrypt, Argon2, PBKDF2]
+  - type: maven
+    namespace: de.mkammerer
+    name: argon2-jvm
+    provides: [Argon2]
+  - type: maven
+    namespace: org.jasypt
+    name: jasypt
+    provides: [AES, 3DES, PBKDF2]
+
+  # --- Go (golang) ---
+  - type: golang
+    namespace: golang.org/x/crypto
+    name: crypto
+    provides:
+      [bcrypt, scrypt, Argon2, ChaCha20, Poly1305, EdDSA, ECDH, HKDF,
+       PBKDF2, SHA-3, Blowfish, CAST5, RIPEMD, Salsa20]
+  - type: golang
+    namespace: github.com/golang-jwt
+    name: jwt
+    provides: [HMAC, RSASSA-PKCS1, RSASSA-PSS, ECDSA, EdDSA]
+  - type: golang
+    namespace: github.com/dgrijalva
+    name: jwt-go
+    provides: [HMAC, RSASSA-PKCS1, ECDSA]
+  - type: golang
+    namespace: filippo.io
+    name: edwards25519
+    provides: [EdDSA]
+  - type: golang
+    namespace: github.com/cloudflare
+    name: circl
+    provides: [ML-KEM, ML-DSA, SLH-DSA, ECDH, EdDSA]
+  - type: golang
+    namespace: go.step.sm
+    name: crypto
+    provides: [RSASSA-PKCS1, ECDSA, EdDSA]
+  - type: golang
+    namespace: github.com/minio
+    name: sha256-simd
+    provides: [SHA-2]
+  - type: golang
+    namespace: golang.org/x/crypto/bcrypt
+    name: bcrypt
+    provides: [bcrypt]
+
+  # --- JavaScript / TypeScript (npm) ---
+  - type: npm
+    name: crypto-js
+    provides: [AES, DES, 3DES, RC4, MD5, SHA-2, SHA-3, HMAC, PBKDF2]
+  - type: npm
+    name: jsonwebtoken
+    provides: [HMAC, RSASSA-PKCS1, RSASSA-PSS, ECDSA]
+  - type: npm
+    name: bcryptjs
+    provides: [bcrypt]
+  - type: npm
+    name: bcrypt
+    provides: [bcrypt]
+  - type: npm
+    name: node-forge
+    provides: [AES, DES, 3DES, RC2, RSASSA-PKCS1, RSAES-OAEP, SHA-2, SHA-1, MD5, HMAC, PBKDF2]
+  - type: npm
+    name: tweetnacl
+    provides: [EdDSA, ECDH, Poly1305, Salsa20, HMAC, SHA-2]
+  - type: npm
+    name: libsodium-wrappers
+    provides: [EdDSA, ECDH, ChaCha20, Poly1305, Argon2, HMAC, SHA-2]
+  - type: npm
+    name: elliptic
+    provides: [ECDSA, EdDSA]
+  - type: npm
+    name: jose
+    provides: [HMAC, RSASSA-PKCS1, RSASSA-PSS, RSAES-OAEP, ECDSA, EdDSA, ECDH]
+  - type: npm
+    name: argon2
+    provides: [Argon2]
+  - type: npm
+    name: openpgp
+    provides: [RSASSA-PKCS1, ECDSA, EdDSA, ECDH, AES, SHA-2]
+  - type: npm
+    name: node-rsa
+    provides: [RSASSA-PKCS1, RSAES-OAEP]
