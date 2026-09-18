@@ -7,6 +7,7 @@ dependencies = [
     "qavach-core",
     "qavach-sandbox",
     "cryptography>=42",
+    "packageurl-python>=0.15",
 ]
 
 [tool.uv.sources]
