@@ -11,7 +11,11 @@ from qavach_collectors.base import RawClaim, Target
 
 
 def normalised_to_raw_claims(
-    normalised_claim: NormalisedClaim, *, target: Target, confidence: ConfidenceTier
+    normalised_claim: NormalisedClaim,
+    *,
+    target: Target,
+    confidence: ConfidenceTier,
+    locus_prefix: str = "",
 ) -> list[RawClaim]:
     """One `RawClaim` per `evidence.occurrences[]` entry — a cryptographic
     asset cdxgen found in more than one file becomes more than one
@@ -38,7 +42,7 @@ def normalised_to_raw_claims(
     if not occurrences:
         return [
             RawClaim(
-                locus=FileLocus(path=target.ref, offset=0),
+                locus=FileLocus(path=f"{locus_prefix}{target.ref}", offset=0),
                 name=name,
                 oid=oid or normalised_claim.oid,
                 primitive=primitive,
@@ -53,7 +57,7 @@ def normalised_to_raw_claims(
     return [
         RawClaim(
             locus=FileLocus(
-                path=str(occurrence.get("location", target.ref)),
+                path=f"{locus_prefix}{occurrence.get('location', target.ref)}",
                 # QAVACH-OPEN: LOCUS-01 — ARCH.md §6.2 gives FileLocus an `offset` but
                 # never says whether that is a line or a column. CycloneDX
                 # occurrences carry both (`line`, `offset`=column). Line is used:
