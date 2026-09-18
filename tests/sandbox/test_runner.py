@@ -318,3 +318,18 @@ def test_secret_env_reaches_the_container_without_being_in_argv() -> None:
     )
     result = run_sandboxed(config)
     assert result.output.strip() == b"delivered-by-name-only"
+
+
+def test_relative_target_mount_is_resolved_to_an_absolute_path() -> None:
+    # Docker treats a relative `-v` source as a named volume, not a path.
+    args = build_sandbox_args(
+        SandboxConfig(
+            image_ref="sha256:" + "a" * 64,
+            target_mount=Path("some/relative/dir"),
+            command=("true",),
+        ),
+        container_name="c",
+    )
+    mount = args[args.index("-v") + 1]
+    assert mount == f"{Path('some/relative/dir').resolve()}:/target:ro"
+    assert mount.startswith("/")

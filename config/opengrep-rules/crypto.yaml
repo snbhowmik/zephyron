@@ -1,0 +1,133 @@
+# T-037 / NOTE.md section 3.3: the breadth tier. Fourteen rules - deliberately not
+# more. Opengrep matches API *names*; it cannot tell a live call from a test
+# fixture or a comment, so findings are PATTERN confidence and the false
+# positives are handled by the confidence tier and dispute mechanism, not by
+# tuning this file.
+#
+# Every rule carries `metadata.qavach_*`, which the adapter maps to a claim
+# - the adapter never parses rule messages. Fields:
+#   qavach_algorithm  CycloneDX registry family name
+#   qavach_primitive  optional
+#   qavach_parameter  optional (only when the API name fixes it)
+# Languages are the ones the AST scanners (cdxgen, cbomkit-lib) miss:
+# C/C++, C#, PHP, Ruby, Rust.
+rules:
+  - id: qavach.c.openssl-md5
+    languages: [c, cpp]
+    severity: WARNING
+    message: MD5 via OpenSSL API
+    pattern-either:
+      - pattern: EVP_md5()
+      - pattern: MD5_Init(...)
+      - pattern: MD5(...)
+    metadata: {qavach_algorithm: MD5, qavach_primitive: hash}
+
+  - id: qavach.c.openssl-sha1
+    languages: [c, cpp]
+    severity: WARNING
+    message: SHA-1 via OpenSSL API
+    pattern-either:
+      - pattern: EVP_sha1()
+      - pattern: SHA1_Init(...)
+      - pattern: SHA1(...)
+    metadata: {qavach_algorithm: SHA-1, qavach_primitive: hash}
+
+  - id: qavach.c.openssl-des
+    languages: [c, cpp]
+    severity: WARNING
+    message: DES/3DES via OpenSSL API
+    patterns:
+      - pattern: $F(...)
+      - metavariable-regex: {metavariable: $F, regex: '^EVP_des_(ede3_)?(cbc|ecb|cfb\d*|ofb)$'}
+    metadata: {qavach_algorithm: 3DES, qavach_primitive: block-cipher}
+
+  - id: qavach.c.openssl-rc4
+    languages: [c, cpp]
+    severity: WARNING
+    message: RC4 via OpenSSL API
+    pattern-either:
+      - pattern: EVP_rc4()
+      - pattern: RC4_set_key(...)
+    metadata: {qavach_algorithm: RC4, qavach_primitive: stream-cipher}
+
+  - id: qavach.c.openssl-aes
+    languages: [c, cpp]
+    severity: INFO
+    message: AES via OpenSSL API
+    patterns:
+      - pattern: $F(...)
+      - metavariable-regex: {metavariable: $F, regex: '^EVP_aes_(128|192|256)_\w+$'}
+    metadata: {qavach_algorithm: AES, qavach_primitive: block-cipher}
+
+  - id: qavach.c.openssl-rsa
+    languages: [c, cpp]
+    severity: INFO
+    message: RSA via OpenSSL API
+    pattern-either:
+      - pattern: RSA_generate_key_ex(...)
+      - pattern: RSA_new()
+    metadata: {qavach_algorithm: RSA}
+
+  - id: qavach.csharp.md5
+    languages: [csharp]
+    severity: WARNING
+    message: MD5 via System.Security.Cryptography
+    pattern: MD5.Create()
+    metadata: {qavach_algorithm: MD5, qavach_primitive: hash}
+
+  - id: qavach.csharp.sha1
+    languages: [csharp]
+    severity: WARNING
+    message: SHA-1 via System.Security.Cryptography
+    pattern: SHA1.Create()
+    metadata: {qavach_algorithm: SHA-1, qavach_primitive: hash}
+
+  - id: qavach.csharp.rsa
+    languages: [csharp]
+    severity: INFO
+    message: RSA via System.Security.Cryptography
+    pattern-either:
+      - pattern: new RSACryptoServiceProvider(...)
+      - pattern: RSA.Create(...)
+    metadata: {qavach_algorithm: RSA}
+
+  - id: qavach.csharp.aes
+    languages: [csharp]
+    severity: INFO
+    message: Symmetric cipher via System.Security.Cryptography
+    pattern-either:
+      - pattern: Aes.Create()
+      - pattern: new AesManaged()
+    metadata: {qavach_algorithm: AES, qavach_primitive: block-cipher}
+
+  - id: qavach.php.md5
+    languages: [php]
+    severity: WARNING
+    message: md5() call
+    pattern: md5(...)
+    metadata: {qavach_algorithm: MD5, qavach_primitive: hash}
+
+  - id: qavach.php.sha1
+    languages: [php]
+    severity: WARNING
+    message: sha1() call
+    pattern: sha1(...)
+    metadata: {qavach_algorithm: SHA-1, qavach_primitive: hash}
+
+  - id: qavach.ruby.openssl-aes
+    languages: [ruby]
+    severity: INFO
+    message: AES via OpenSSL::Cipher
+    patterns:
+      - pattern: OpenSSL::Cipher.new($C)
+      - metavariable-regex: {metavariable: $C, regex: '(?i).*aes'}
+    metadata: {qavach_algorithm: AES, qavach_primitive: block-cipher}
+
+  - id: qavach.rust.rsa
+    languages: [rust]
+    severity: INFO
+    message: RSA via the rsa crate
+    pattern-either:
+      - pattern: RsaPrivateKey::new(...)
+      - pattern: rsa::RsaPrivateKey::new(...)
+    metadata: {qavach_algorithm: RSA}

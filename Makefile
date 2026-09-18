@@ -69,3 +69,5 @@ build-images: ## build QAVACH-owned scanner images and print their content-addre
 	@echo "cbomkit-lib image ID: $$($(ENGINE) image inspect --format '{{.Id}}' qavach/cbomkit-lib:dev)"
 	$(ENGINE) build -t qavach/certipy:dev docker/certipy
 	@echo "certipy image ID: $$($(ENGINE) image inspect --format '{{.Id}}' qavach/certipy:dev)"
+	$(ENGINE) build --build-context rules=config/opengrep-rules -t qavach/opengrep:dev docker/opengrep
+	@echo "opengrep image ID: $$($(ENGINE) image inspect --format '{{.Id}}' qavach/opengrep:dev)"

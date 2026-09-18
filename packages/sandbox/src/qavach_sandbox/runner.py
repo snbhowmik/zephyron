@@ -190,7 +190,9 @@ def build_sandbox_args(config: SandboxConfig, *, container_name: str) -> list[st
         config.cpus,
     ]
     if config.target_mount is not None:
-        args += ["-v", f"{config.target_mount}:/target:ro"]
+        # Docker reads a relative left-hand side as a *named volume*, silently
+        # mounting an empty one instead of the target.
+        args += ["-v", f"{config.target_mount.resolve()}:/target:ro"]
     for name, value in {"HOME": "/tmp", **config.env}.items():
         args += ["-e", f"{name}={value}"]
     for name in config.secret_env:

@@ -41,11 +41,22 @@ qavach_built_images:
   source_scan.opengrep:
     upstream: opengrep/opengrep
     upstream_licence: LGPL-2.1
+    release: v1.30.0
+    release_asset: opengrep_manylinux_x86
+    release_asset_sha256: 35779bdd72e92129c8df2a77f0c55e8c08356801ea92591ef32108d6b28d564c
+    dockerfile: docker/opengrep/Dockerfile
+    rules: config/opengrep-rules/crypto.yaml
+    build_command: make build-images
     reason: >
       No official container image published (no Dockerfile, no image
       publish workflow, verified against the live repo 2026-09-18).
-      Separate-process-only per NFR-10 — never linked or vendored.
+      Separate-process-only per NFR-10 - never linked or vendored. The
+      release binary is checksum-verified at build time; its engine is
+      pre-extracted into the image because the sandbox's noexec tmpfs
+      forbids the first-run unpack. The rule pack is baked in, so the image
+      ID pins engine and rules together.
     built_by: T-037
+    verified_on: 2026-09-19
     digest: null
 
   source_scan.cbomkit:
