@@ -83,6 +83,13 @@ class SandboxConfig:
     engine: str = "docker"
     """CLAUDE.md §4: Docker or Podman, kept swappable."""
     seccomp_profile: Path = Path("config/seccomp/scanner.json")
+    env: dict[str, str] = field(default_factory=dict)
+    """Non-secret environment (`-e NAME=value`). `HOME=/tmp` is always set
+    unless overridden here: uid 65534 has no home directory, so tools that
+    create an application folder under `$HOME` (CBOMkit-theia writes
+    `$HOME/.cbomkit-theia`, found live in T-039) otherwise try `//.<name>` on
+    the read-only root and fail with `EROFS`. `/tmp` is the writable tmpfs.
+    Secrets must never go here — see `secret_env`."""
     secret_env: dict[str, str] = field(default_factory=dict, repr=False)
     """Secrets (`SECURITY.md §6`) passed by *name only*: `build_sandbox_args`
     emits `-e NAME` — never `-e NAME=value` — and `run_sandboxed` supplies
@@ -184,6 +191,8 @@ def build_sandbox_args(config: SandboxConfig, *, container_name: str) -> list[st
     ]
     if config.target_mount is not None:
         args += ["-v", f"{config.target_mount}:/target:ro"]
+    for name, value in {"HOME": "/tmp", **config.env}.items():
+        args += ["-e", f"{name}={value}"]
     for name in config.secret_env:
         args += ["-e", name]
     for host_path, container_path in config.extra_mounts.items():

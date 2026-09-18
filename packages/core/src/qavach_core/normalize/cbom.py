@@ -82,7 +82,10 @@ def normalise_bom(
         )
 
     claims: list[NormalisedClaim] = []
-    for component in document.get("components", []):
+    # `or []`, not a `.get` default: a real tool (CBOMkit-theia, found in
+    # T-039) emits an explicit JSON `null` for "no components", which a
+    # `.get("components", [])` default does not replace.
+    for component in document.get("components") or []:
         if component.get("type") != "cryptographic-asset":
             continue
 

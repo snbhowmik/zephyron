@@ -259,3 +259,15 @@ def test_every_supported_version_is_accepted(
     supported version."""
     document = {"bomFormat": "CycloneDX", "specVersion": version, "components": []}
     assert normalise_bom(document, registry=registry, aliases=aliases) == []
+
+
+@pytest.mark.parametrize("components", [None, []])
+def test_null_or_empty_components_yields_no_claims(
+    registry: CryptographyRegistry, aliases: AliasTable, components: object
+) -> None:
+    """Regression, found by real tool output (T-039): CBOMkit-theia emits
+    `"components": null` when it finds nothing. A `.get("components", [])`
+    default does not cover an explicit null, and every hand-written fixture
+    had a list — so this only surfaced against the real scanner."""
+    document = {"bomFormat": "CycloneDX", "specVersion": "1.6", "components": components}
+    assert normalise_bom(document, registry=registry, aliases=aliases) == []

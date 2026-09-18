@@ -81,8 +81,24 @@ def test_secret_env_is_passed_by_name_only_never_by_value() -> None:
     show in `ps`, `docker inspect` and the recorded tool invocation."""
     config = _config(secret_env={"QAVACH_AD_PASSWORD": "s3cr3t-value"})
     args = build_sandbox_args(config, container_name="x")
-    assert args[args.index("-e") + 1] == "QAVACH_AD_PASSWORD"
+    assert "QAVACH_AD_PASSWORD" in args  # the bare name, no `=value`
     assert not any("s3cr3t-value" in a for a in args)
+
+
+def test_home_defaults_to_the_writable_tmpfs_and_can_be_overridden() -> None:
+    """uid 65534 has no home dir; tools that create `$HOME/.<app>` (theia,
+    T-039) otherwise fail on the read-only root."""
+    assert "HOME=/tmp" in build_sandbox_args(_config(), container_name="x")
+    overridden = build_sandbox_args(_config(env={"HOME": "/work"}), container_name="x")
+    assert "HOME=/work" in overridden and "HOME=/tmp" not in overridden
+
+
+def test_plain_env_is_passed_by_value_but_secret_env_never_is() -> None:
+    args = build_sandbox_args(
+        _config(env={"MODE": "fast"}, secret_env={"TOKEN": "s3cret"}), container_name="x"
+    )
+    assert "MODE=fast" in args
+    assert "TOKEN" in args and not any("s3cret" in a for a in args)
 
 
 def test_secret_env_never_appears_in_the_config_repr() -> None:
