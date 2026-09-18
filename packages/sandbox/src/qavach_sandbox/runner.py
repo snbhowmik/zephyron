@@ -26,6 +26,7 @@ logs` is the only channel data crosses on.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 import uuid
@@ -48,8 +49,11 @@ class SandboxConfig:
 
     image_ref: str
     """Must be `<image>@sha256:<digest>` — never a tag."""
-    target_mount: Path
-    """Host path mounted read-only at `/target` inside the container."""
+    target_mount: Path | None
+    """Host path mounted read-only at `/target` inside the container, or
+    `None` for a collector with no filesystem target (a network-only probe
+    such as `ad.adcs`) — in which case *nothing* from the host is mounted,
+    rather than an arbitrary directory being exposed to satisfy the type."""
     command: tuple[str, ...]
     """`command[0]` always becomes `--entrypoint`, overriding whatever
     `ENTRYPOINT` the image itself bakes in — a scanner image with its own
@@ -79,6 +83,13 @@ class SandboxConfig:
     engine: str = "docker"
     """CLAUDE.md §4: Docker or Podman, kept swappable."""
     seccomp_profile: Path = Path("config/seccomp/scanner.json")
+    secret_env: dict[str, str] = field(default_factory=dict, repr=False)
+    """Secrets (`SECURITY.md §6`) passed by *name only*: `build_sandbox_args`
+    emits `-e NAME` — never `-e NAME=value` — and `run_sandboxed` supplies
+    the value through the `docker` process's own environment. The value
+    therefore never appears in any argv (`ps`, `docker inspect`'s `Cmd`,
+    the recorded `ToolIdentity.invocation`) and, with `repr=False`, never
+    in a log line or traceback that prints this config."""
     extra_mounts: dict[str, str] = field(default_factory=dict)
     """`{host_path: container_path}`, always mounted `:ro`. For collectors
     that need a second read-only input (e.g. a credential file) beyond the
@@ -102,11 +113,30 @@ class SandboxResult:
         return not self.timed_out and self.exit_code == 0
 
 
+_HEX = frozenset("0123456789abcdef")
+
+
+def _is_sha256_hex(value: str) -> bool:
+    return len(value) == 64 and set(value) <= _HEX
+
+
 def _validate_pinned_by_digest(image_ref: str) -> None:
-    if "@sha256:" not in image_ref:
+    """Accepts `<name>@sha256:<64 hex>` (a registry digest) or a bare
+    `sha256:<64 hex>` (a content-addressed local image ID — how a
+    QAVACH-built image is referenced until it is published to a registry
+    and gets a registry digest). Both are immutable; a tag never is."""
+    name, separator, digest = image_ref.rpartition("@")
+    is_registry_digest = (
+        separator == "@"
+        and bool(name)
+        and digest.startswith("sha256:")
+        and _is_sha256_hex(digest[7:])
+    )
+    is_bare_image_id = image_ref.startswith("sha256:") and _is_sha256_hex(image_ref[7:])
+    if not (is_registry_digest or is_bare_image_id):
         raise ImageNotPinnedError(
             f"{image_ref!r} is not pinned by digest — SECURITY.md §3 requires "
-            "'<image>@sha256:...', never a mutable tag"
+            "'<image>@sha256:<64 hex>', never a mutable tag"
         )
 
 
@@ -151,9 +181,11 @@ def build_sandbox_args(config: SandboxConfig, *, container_name: str) -> list[st
         config.memory,
         "--cpus",
         config.cpus,
-        "-v",
-        f"{config.target_mount}:/target:ro",
     ]
+    if config.target_mount is not None:
+        args += ["-v", f"{config.target_mount}:/target:ro"]
+    for name in config.secret_env:
+        args += ["-e", name]
     for host_path, container_path in config.extra_mounts.items():
         args += ["-v", f"{host_path}:{container_path}:ro"]
     args += [config.image_ref, *config.command[1:]]
@@ -180,7 +212,12 @@ def run_sandboxed(config: SandboxConfig) -> SandboxResult:
     stderr = b""
 
     try:
-        subprocess.run(create_args, capture_output=True, check=True)
+        subprocess.run(
+            create_args,
+            capture_output=True,
+            check=True,
+            env={**os.environ, **config.secret_env} if config.secret_env else None,
+        )
         subprocess.run([config.engine, "start", container_name], capture_output=True, check=True)
         try:
             wait_proc = subprocess.run(

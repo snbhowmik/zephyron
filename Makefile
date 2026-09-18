@@ -1,4 +1,4 @@
-.PHONY: dev dev-down dev-logs test test-unit lint fmt schema-check scanners-pull demo sync
+.PHONY: build-images dev dev-down dev-logs test test-unit lint fmt schema-check scanners-pull demo sync
 
 # CLAUDE.md §5. Targets below are real where the underlying task has landed;
 # where it hasn't, the target says so explicitly and names the blocking task
@@ -63,3 +63,9 @@ scanners-pull: ## pull pinned scanner container images
 
 demo: ## seed the demo dataset and open the UI
 	@echo "No demo dataset yet — see TASK.md T-120." >&2; exit 1
+
+build-images: ## build QAVACH-owned scanner images and print their content-addressed IDs
+	$(ENGINE) build -t qavach/cbomkit-lib:dev docker/cbomkit-lib
+	@echo "cbomkit-lib image ID: $$($(ENGINE) image inspect --format '{{.Id}}' qavach/cbomkit-lib:dev)"
+	$(ENGINE) build -t qavach/certipy:dev docker/certipy
+	@echo "certipy image ID: $$($(ENGINE) image inspect --format '{{.Id}}' qavach/certipy:dev)"

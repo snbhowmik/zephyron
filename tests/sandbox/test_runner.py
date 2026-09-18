@@ -48,6 +48,48 @@ def test_rejects_a_tag_instead_of_a_digest() -> None:
         build_sandbox_args(_config(image_ref="ghcr.io/anchore/syft:latest"), container_name="x")
 
 
+@pytest.mark.parametrize(
+    "ref",
+    [
+        "ghcr.io/x/y@sha256:" + "a" * 64,
+        "sha256:" + "b" * 64,  # a content-addressed local image ID
+    ],
+)
+def test_accepts_registry_digests_and_bare_image_ids(ref: str) -> None:
+    args = build_sandbox_args(_config(image_ref=ref), container_name="x")
+    assert ref in args
+
+
+@pytest.mark.parametrize(
+    "ref",
+    [
+        "ghcr.io/x/y:latest",
+        "ghcr.io/x/y@sha256:tooshort",
+        "ghcr.io/x/y@sha256:" + "Z" * 64,  # not hex
+        "ghcr.io/x/y@md5:" + "a" * 32,
+        "@sha256:" + "a" * 64,  # no image name
+        "sha256:tooshort",
+    ],
+)
+def test_rejects_malformed_or_mutable_refs(ref: str) -> None:
+    with pytest.raises(ImageNotPinnedError):
+        build_sandbox_args(_config(image_ref=ref), container_name="x")
+
+
+def test_secret_env_is_passed_by_name_only_never_by_value() -> None:
+    """SECURITY.md §6: a secret must never appear in any argv — it would
+    show in `ps`, `docker inspect` and the recorded tool invocation."""
+    config = _config(secret_env={"QAVACH_AD_PASSWORD": "s3cr3t-value"})
+    args = build_sandbox_args(config, container_name="x")
+    assert args[args.index("-e") + 1] == "QAVACH_AD_PASSWORD"
+    assert not any("s3cr3t-value" in a for a in args)
+
+
+def test_secret_env_never_appears_in_the_config_repr() -> None:
+    config = _config(secret_env={"QAVACH_AD_PASSWORD": "s3cr3t-value"})
+    assert "s3cr3t-value" not in repr(config)
+
+
 def test_network_none_by_default() -> None:
     args = build_sandbox_args(_config(), container_name="x")
     assert "--network=none" in args
@@ -107,6 +149,11 @@ def test_target_mounted_read_only() -> None:
     assert "-v" in args
     mount_idx = args.index("-v") + 1
     assert args[mount_idx] == "/scan/target-1:/target:ro"
+
+
+def test_no_target_mount_means_nothing_from_the_host_is_mounted() -> None:
+    args = build_sandbox_args(_config(target_mount=None), container_name="x")
+    assert "-v" not in args
 
 
 def test_extra_mounts_are_also_read_only() -> None:
@@ -238,3 +285,20 @@ def test_crashed_scanner_is_empty_output_not_an_exception() -> None:
     assert result.exit_code == 1
     assert result.output == b""
     assert not result.ok
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(not _ENGINE_AVAILABLE, reason="no container engine on PATH")
+def test_secret_env_reaches_the_container_without_being_in_argv() -> None:
+    """The value is delivered (the process inside can read it) purely via
+    the `docker` client's environment — the create-time argv only ever
+    carried the *name*."""
+    config = _config(
+        command=("sh", "-c", "printenv QAVACH_TEST_SECRET"),
+        secret_env={"QAVACH_TEST_SECRET": "delivered-by-name-only"},
+    )
+    assert not any(
+        "delivered-by-name-only" in a for a in build_sandbox_args(config, container_name="x")
+    )
+    result = run_sandboxed(config)
+    assert result.output.strip() == b"delivered-by-name-only"

@@ -169,6 +169,13 @@ docker run --rm
   -c "..."`, with cdxgen receiving "sh"/"-c"/the script text as its own
   confused CLI arguments. Invisible in T-031's own tests because `busybox`
   has no conflicting `ENTRYPOINT` to collide with.
+- **Secrets cross by name, never by value.** A credential a collector needs
+  (`SECURITY.md §6`) is passed as `-e NAME` — the value travels in the `docker`
+  client's own environment — so it appears in no argv: not `ps`, not `docker
+  inspect`'s `Cmd`, not the recorded `ToolIdentity.invocation`. `SandboxConfig.
+  secret_env` enforces this and hides the values from `repr`. A tool that only
+  takes a password as a CLI flag (Certipy's `-p`) is fed through its stdin
+  instead.
 - **Timeout enforced by the orchestrator**, not by the container. Default 900s.
   A hung scanner is a failed collector (`partial=True`), not a hung scan.
 - **Failure is isolated.** A crashed, OOM-killed or timed-out collector

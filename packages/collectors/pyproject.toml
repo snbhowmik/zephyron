@@ -8,6 +8,7 @@ dependencies = [
     "qavach-sandbox",
     "cryptography>=42",
     "packageurl-python>=0.15",
+    "boto3>=1.35",
 ]
 
 [tool.uv.sources]

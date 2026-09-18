@@ -1,0 +1,43 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "QavachKmsInventoryReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "kms:ListKeys",
+        "kms:DescribeKey",
+        "kms:GetKeyRotationStatus"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "QavachAcmInventoryReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "acm:ListCertificates",
+        "acm:DescribeCertificate"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "QavachElbTlsPolicyReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeSSLPolicies"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "QavachSelfCheckOnly",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity",
+        "iam:SimulatePrincipalPolicy"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

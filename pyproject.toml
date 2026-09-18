@@ -48,6 +48,7 @@ dev = [
     "pyyaml>=6.0",  # scripts/pull_scanners.py (T-006) — explicit, not transitive
     "types-pyyaml>=6.0",  # mypy stubs for apps/agent/src/qavach_agent/known_paths.py (T-034a)
     "jsonschema>=4.23",  # make schema-check (T-011, T-091) — dev tool, not a core dependency
+    "moto[acm,elbv2,iam,kms,sts]>=5",
 ]
 
 [tool.ruff]
@@ -66,6 +67,12 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.12"
 strict = true
 # T-003 wires this into CI, scoped to packages/core first (CLAUDE.md §5).
+
+# boto3/botocore ship no type stubs or py.typed marker; the collector
+# treats their clients as `Any` and validates response shape itself (T-040).
+[[tool.mypy.overrides]]
+module = ["boto3.*", "botocore.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "packages", "apps"]

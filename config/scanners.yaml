@@ -51,24 +51,36 @@ qavach_built_images:
   source_scan.cbomkit:
     upstream: cbomkit/cbomkit-lib
     upstream_licence: Apache-2.0
-    build_dependency: com.ibm:sonar-cryptography-plugin (GitHub Packages — PAT
-      resolved once at QAVACH's own image-build time, never at scan time;
-      see NOTE.md §3.2)
+    plugin: cbomkit/sonar-cryptography (Apache-2.0), tag 1.7.0
+    dockerfile: docker/cbomkit-lib/Dockerfile
+    build_command: make build-images
     reason: >
-      cbomkit-lib is a library, not a published container. QAVACH builds
-      the target repo first (when --allow-build-resolution is set) then
-      scans with jar/class paths, matching cbomkit-action's sequencing.
+      cbomkit-lib is a library with no main, and its dependency
+      com.ibm:sonar-cryptography-plugin is published only to GitHub
+      Packages (PAT required even to read; not on Maven Central — checked).
+      Both are Apache-2.0, so QAVACH builds the plugin from its pinned
+      release tag inside the image build: no credential at build or scan
+      time. Inputs pinned by full commit SHA + base-image digest.
     built_by: T-038
+    verified_on: 2026-09-19
+    # A registry digest is assigned only when the image is published. Until
+    # then a locally built image is pinned by its content-addressed ID
+    # (`make build-images` prints it) — never by a tag.
     digest: null
 
   ad.adcs:
     upstream: ly4k/Certipy
     upstream_licence: MIT
+    dockerfile: docker/certipy/Dockerfile
+    build_command: make build-images
+    pinned_commit: 3ae34426c58d266a1979ff9607514c3d7fe1aa21
     reason: >
-      Certipy is typically pip-installed, not container-distributed.
-      secure-77/Certipy-Docker exists but is unlicensed and stale (last
-      push 2024-03-28) — do not depend on it. Build our own minimal wrapper
-      pinning `pip install certipy-ad==<version>`.
+      Certipy is normally pip-installed. The one community image
+      (secure-77/Certipy-Docker) is unlicensed and stale (last push
+      2024-03-28) — do not depend on it. Built from the exact upstream
+      commit whose `find` JSON schema the parser was written against; PyPI's
+      5.1.0 predates it. Verified 2026-09-19: the image runs sandboxed and
+      the stdin-password path works. NOT verified against a real domain.
     built_by: T-045
     digest: null
 

@@ -24,13 +24,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from qavach_core.model import ConfidenceTier, FileLocus
+from qavach_core.model import ConfidenceTier
 from qavach_core.normalize import (
     AliasTable,
     CryptographyRegistry,
-    NormalisedClaim,
-    ResolvedAlgorithm,
-    ResolvedCurve,
     normalise_bom,
 )
 from qavach_sandbox import SandboxConfig, run_sandboxed
@@ -38,13 +35,13 @@ from qavach_sandbox import SandboxConfig, run_sandboxed
 from qavach_collectors.base import (
     CollectorError,
     CollectorResult,
-    RawClaim,
     RawFormat,
     RunContext,
     Target,
     TargetType,
     ToolIdentity,
 )
+from qavach_collectors.cbom_claims import normalised_to_raw_claims
 
 # config/scanners.yaml — verified live against the registry's anonymous OCI
 # API on 2026-09-18 (T-006). Re-verify before relying on this after that
@@ -176,7 +173,7 @@ class CdxgenCollector:
         claims = [
             claim
             for normalised_claim in normalised
-            for claim in _to_raw_claims(
+            for claim in normalised_to_raw_claims(
                 normalised_claim, target=target, confidence=self.default_confidence
             )
         ]
@@ -189,62 +186,3 @@ class CdxgenCollector:
             errors=[],
             partial=False,
         )
-
-
-def _to_raw_claims(
-    normalised_claim: NormalisedClaim, *, target: Target, confidence: ConfidenceTier
-) -> list[RawClaim]:
-    """One `RawClaim` per `evidence.occurrences[]` entry — a cryptographic
-    asset cdxgen found in more than one file becomes more than one
-    occurrence, matching `ARCH.md §2.1`'s "a collector reports what it saw"
-    contract rather than collapsing multi-location evidence into one
-    locus. Falls back to a single claim anchored at the repository root
-    when cdxgen supplied no occurrence evidence at all — still real
-    information (the component exists), just without a specific file."""
-    algo = normalised_claim.resolved_algorithm
-    name = (
-        algo.algorithm_family
-        if isinstance(algo, ResolvedAlgorithm)
-        else getattr(algo, "raw_name", None)
-    )
-    oid = algo.oid if isinstance(algo, ResolvedAlgorithm) else getattr(algo, "raw_oid", None)
-    primitive = algo.primitive if isinstance(algo, ResolvedAlgorithm) else None
-    parameter_set = algo.parameter_set if isinstance(algo, ResolvedAlgorithm) else None
-    curve = normalised_claim.resolved_curve
-    curve_name = (
-        curve.canonical if isinstance(curve, ResolvedCurve) else getattr(curve, "raw_name", None)
-    )
-
-    occurrences = normalised_claim.evidence_occurrences
-    if not occurrences:
-        return [
-            RawClaim(
-                locus=FileLocus(path=target.ref, offset=0),
-                name=name,
-                oid=oid or normalised_claim.oid,
-                primitive=primitive,
-                parameter_set=parameter_set or curve_name,
-                mode=normalised_claim.mode,
-                padding=normalised_claim.padding,
-                detection_method="ast",
-                confidence=confidence,
-            )
-        ]
-
-    return [
-        RawClaim(
-            locus=FileLocus(
-                path=str(occurrence.get("location", target.ref)),
-                offset=int(occurrence.get("offset") or occurrence.get("line") or 0),
-            ),
-            name=name,
-            oid=oid or normalised_claim.oid,
-            primitive=primitive,
-            parameter_set=parameter_set or curve_name,
-            mode=normalised_claim.mode,
-            padding=normalised_claim.padding,
-            detection_method="ast",
-            confidence=confidence,
-        )
-        for occurrence in occurrences
-    ]
