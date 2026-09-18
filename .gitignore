@@ -36,3 +36,7 @@ apps/web/dist/
 # Test scratch dirs (sandbox integration tests need a real bind-mountable
 # host path — T-031)
 .scratch-target/
+
+# Downloaded, checksum-verified test fixture binaries (T-036) — never
+# committed; re-fetched and re-verified on demand
+tests/collectors/.cache/
