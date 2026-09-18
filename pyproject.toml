@@ -71,7 +71,7 @@ strict = true
 # boto3/botocore ship no type stubs or py.typed marker; the collector
 # treats their clients as `Any` and validates response shape itself (T-040).
 [[tool.mypy.overrides]]
-module = ["boto3.*", "botocore.*"]
+module = ["boto3.*", "botocore.*", "pefile.*", "macholib.*", "elftools.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

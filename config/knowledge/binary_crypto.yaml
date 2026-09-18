@@ -1,0 +1,58 @@
+# T-036b. What `binary.static` reads out of compiled binaries.
+#
+# Two tables, both matched against the *import table* (and, for PE/ELF/Mach-O,
+# the dynamic-library list). Neither is usage evidence: an imported symbol
+# means the linker resolved a reference to it, not that a code path runs.
+#
+# `symbols`   regex on an imported function name -> an algorithm claim. `name`
+#             values are CycloneDX registry family names; `{1}`, `{2}` in
+#             `parameter_set` / `mode` are regex capture groups.
+# `libraries` regex on a shared-library filename -> the algorithm families the
+#             library CAN provide (capability, not usage — the same contract as
+#             crypto_libraries.yaml; do not add a `used` field).
+#
+# tests/collectors/test_binary_static.py re-checks on every run that each
+# name here resolves through qavach_core.normalize, so a typo cannot quietly
+# turn the whole table into UNKNOWN (invariant I8).
+#
+# First pass, OpenSSL-family (OpenSSL, LibreSSL, BoringSSL) symbol names —
+# read from OpenSSL's public headers (evp.h, rsa.h, ...). Other stacks are
+# covered at library level only. Extend; absence is not "no crypto".
+
+symbols:
+  - {pattern: '^EVP_aes_(128|192|256)_(gcm|ccm|ocb)$', name: AES, primitive: ae, parameter_set: '{1}', mode: '{2}'}
+  - {pattern: '^EVP_aes_(128|192|256)_(cbc|ecb|ctr|cfb\d*|ofb|xts|wrap\w*)$', name: AES, primitive: block-cipher, parameter_set: '{1}', mode: '{2}'}
+  - {pattern: '^EVP_des_ede3(_\w+)?$', name: 3DES, primitive: block-cipher}
+  - {pattern: '^EVP_des_(cbc|ecb|cfb\d*|ofb)$', name: DES, primitive: block-cipher, mode: '{1}'}
+  - {pattern: '^EVP_rc4(_\w+)?$', name: RC4, primitive: stream-cipher}
+  - {pattern: '^EVP_bf_\w+$', name: Blowfish, primitive: block-cipher}
+  - {pattern: '^EVP_camellia_(128|192|256)_\w+$', name: CAMELLIA, primitive: block-cipher, parameter_set: '{1}'}
+  - {pattern: '^EVP_chacha20_poly1305$', name: ChaCha20, primitive: ae}
+  - {pattern: '^EVP_chacha20$', name: ChaCha20, primitive: stream-cipher}
+  - {pattern: '^(EVP_md5|MD5_Init|MD5_Update|MD5)$', name: MD5, primitive: hash}
+  - {pattern: '^(EVP_sha1|SHA1_Init|SHA1_Update|SHA1)$', name: SHA-1, primitive: hash}
+  - {pattern: '^(EVP_sha(224|256)|SHA(224|256)_Init|SHA(224|256))$', name: SHA-2, primitive: hash, parameter_set: '256'}
+  - {pattern: '^(EVP_sha(384|512)|SHA(384|512)_Init|SHA(384|512))$', name: SHA-2, primitive: hash, parameter_set: '512'}
+  - {pattern: '^EVP_sha3_(224|256|384|512)$', name: SHA-3, primitive: hash, parameter_set: '{1}'}
+  - {pattern: '^RSA_\w+$', name: RSA}
+  - {pattern: '^DSA_\w+$', name: DSA}
+  - {pattern: '^DH_\w+$', name: FFDH, primitive: key-agree}
+  - {pattern: '^ECDSA_\w+$', name: ECDSA, primitive: signature}
+  - {pattern: '^ECDH_\w+$', name: ECDH, primitive: key-agree}
+  - {pattern: '^X25519$', name: ECDH, primitive: key-agree, parameter_set: x25519}
+  - {pattern: '^ED25519_(sign|verify|keypair)\w*$', name: EdDSA, primitive: signature}
+
+libraries:
+  - {pattern: '^libcrypto([.-]\S+)?\.(so|dll|dylib)(\.\S+)?$', provides: [AES, RSA, ECDSA, ECDH, EdDSA, DSA, FFDH, SHA-1, SHA-2, SHA-3, MD5, HMAC, ChaCha20, 3DES, DES, RC4, Blowfish, CAMELLIA]}
+  - {pattern: '^libssl([.-]\S+)?\.(so|dll|dylib)(\.\S+)?$', provides: [AES, RSA, ECDSA, ECDH, SHA-2, ChaCha20]}
+  - {pattern: '^libgnutls\S*\.(so|dll|dylib)(\.\S+)?$', provides: [AES, RSA, ECDSA, ECDH, EdDSA, SHA-2, ChaCha20]}
+  - {pattern: '^libnss3\.(so|dll|dylib)$', provides: [AES, RSA, ECDSA, ECDH, SHA-2, SHA-1, MD5]}
+  - {pattern: '^libgcrypt\.(so|dll|dylib)(\.\S+)?$', provides: [AES, RSA, ECDSA, EdDSA, SHA-2, SHA-3, ChaCha20, 3DES]}
+  - {pattern: '^libsodium\.(so|dll|dylib)(\.\S+)?$', provides: [EdDSA, ECDH, ChaCha20, Poly1305]}
+  - {pattern: '^libwolfssl\.(so|dll|dylib)(\.\S+)?$', provides: [AES, RSA, ECDSA, ECDH, SHA-2, ChaCha20]}
+  - {pattern: '^libmbedcrypto\.(so|dll|dylib)(\.\S+)?$', provides: [AES, RSA, ECDSA, ECDH, SHA-2, ChaCha20]}
+  - {pattern: '^libnettle\.(so|dll|dylib)(\.\S+)?$', provides: [AES, SHA-2, SHA-3, ChaCha20]}
+  - {pattern: '^libhogweed\.(so|dll|dylib)(\.\S+)?$', provides: [RSA, ECDSA, EdDSA]}
+  - {pattern: '^liboqs\.(so|dll|dylib)(\.\S+)?$', provides: [ML-KEM, ML-DSA, SLH-DSA]}
+  - {pattern: '^(bcrypt|bcryptprimitives)\.dll$', provides: [AES, RSA, ECDSA, ECDH, SHA-2, SHA-1, MD5, HMAC, 3DES, DES, RC4]}
+  - {pattern: '^ncrypt\.dll$', provides: [RSA, ECDSA, ECDH]}
