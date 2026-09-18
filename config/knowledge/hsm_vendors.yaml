@@ -1,0 +1,48 @@
+# T-041. PKCS#11 client-library filenames -> vendor/product, used by the
+# `hsm.evidence` collector to say *which* HSM boundary a library file
+# indicates.
+#
+# A filename match is EVIDENCE that a module is installed, never proof it is
+# in use or what it holds (ARCH.md §2.2; NOTE.md T-041). Matching is on the
+# lower-cased basename.
+#
+# class:
+#   hardware      network/PCIe HSM or hardware token client library
+#   smartcard     smartcard / USB token middleware
+#   software      software token (e.g. SoftHSM) — a real crypto boundary, but
+#                 not hardware-backed; usually a test/dev stand-in
+#   system_trust  a read-only trust-anchor store exposed over PKCS#11
+#                 (p11-kit-trust). Recorded, but NOT an HSM boundary and never
+#                 emitted as one (invariant I9: external trust anchors are
+#                 inventoried, not ranked).
+#
+# Names are taken from vendor client documentation and the p11-kit/OpenSC
+# projects. Only OpenSC, p11-kit-trust and gnome-keyring were confirmed
+# against files on a real host during development; the rest are documented
+# names and should be re-verified against a real install (NOTE.md T-041).
+
+libraries:
+  - {file: libcryptoki2_64.so, vendor: Thales, product: Luna Network/PCIe HSM, class: hardware}
+  - {file: libcryptoki2.so, vendor: Thales, product: Luna Network/PCIe HSM, class: hardware}
+  - {file: cryptoki.dll, vendor: Thales, product: Luna Network/PCIe HSM, class: hardware}
+  - {file: libcknfast.so, vendor: Entrust, product: nShield HSM, class: hardware}
+  - {file: cknfast.dll, vendor: Entrust, product: nShield HSM, class: hardware}
+  - {file: libcs_pkcs11_r2.so, vendor: Utimaco, product: CryptoServer, class: hardware}
+  - {file: libcs_pkcs11_r3.so, vendor: Utimaco, product: CryptoServer, class: hardware}
+  - {file: cs_pkcs11_r2.dll, vendor: Utimaco, product: CryptoServer, class: hardware}
+  - {file: cs_pkcs11_r3.dll, vendor: Utimaco, product: CryptoServer, class: hardware}
+  - {file: libcloudhsm_pkcs11.so, vendor: AWS, product: CloudHSM, class: hardware}
+  - {file: libprimusp11.so, vendor: Securosys, product: Primus HSM, class: hardware}
+  - {file: yubihsm_pkcs11.so, vendor: Yubico, product: YubiHSM 2, class: hardware}
+  - {file: yubihsm_pkcs11.dll, vendor: Yubico, product: YubiHSM 2, class: hardware}
+  - {file: fortanix_pkcs11.so, vendor: Fortanix, product: DSM, class: hardware}
+  - {file: libetoken.so, vendor: Thales/SafeNet, product: eToken, class: smartcard}
+  - {file: libetpkcs11.so, vendor: Thales/SafeNet, product: eToken, class: smartcard}
+  - {file: etpkcs11.dll, vendor: Thales/SafeNet, product: eToken, class: smartcard}
+  - {file: opensc-pkcs11.so, vendor: OpenSC, product: smartcard middleware, class: smartcard}
+  - {file: onepin-opensc-pkcs11.so, vendor: OpenSC, product: smartcard middleware, class: smartcard}
+  - {file: opensc-pkcs11.dll, vendor: OpenSC, product: smartcard middleware, class: smartcard}
+  - {file: libsofthsm2.so, vendor: OpenDNSSEC, product: SoftHSM v2, class: software}
+  - {file: softhsm2.dll, vendor: OpenDNSSEC, product: SoftHSM v2, class: software}
+  - {file: gnome-keyring-pkcs11.so, vendor: GNOME, product: Keyring, class: software}
+  - {file: p11-kit-trust.so, vendor: p11-kit, product: trust module, class: system_trust}

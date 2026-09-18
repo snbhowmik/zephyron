@@ -16,7 +16,9 @@
 #                 variable or convention the agent resolves it against
 #                 (e.g. `CATALINA_BASE`, `JBOSS_HOME`, `DOMAIN_HOME`)
 #   kind:         trust_store | private_key_dir | keystore |
-#                 config_with_keystore_refs | demo_credential
+#                 config_with_keystore_refs | demo_credential | hsm_evidence
+#                 (`hsm_evidence`: PKCS#11 module configs and client-library
+#                 directories, read by the `hsm.evidence` collector, T-041)
 #                 (`demo_credential`: a vendor-shipped default keystore
 #                 that ships with the product and is notoriously left in
 #                 production unchanged — WebLogic's DemoIdentity.jks and
@@ -30,6 +32,15 @@
 # FR-134 names, not an exhaustive survey of every possible install layout.
 
 paths:
+  # --- Linux: PKCS#11 / HSM evidence (T-041) ---
+  - {platform: linux, path: /etc/pkcs11, kind: hsm_evidence}
+  - {platform: linux, path: /usr/share/p11-kit/modules, kind: hsm_evidence}
+  - {platform: linux, path: /usr/lib64/pkcs11, kind: hsm_evidence}
+  - {platform: linux, path: /usr/lib/pkcs11, kind: hsm_evidence}
+  - {platform: linux, path: /usr/lib/x86_64-linux-gnu/pkcs11, kind: hsm_evidence}
+  - {platform: linux, path: /etc/ssl/openssl.cnf, kind: hsm_evidence}
+  - {platform: linux, path: /etc/pki/tls/openssl.cnf, kind: hsm_evidence}
+
   # --- Linux: OS trust stores and private-key directories ---
   - {platform: linux, path: /etc/ssl/certs, kind: trust_store}
   - {platform: linux, path: /etc/ssl/private, kind: private_key_dir}
