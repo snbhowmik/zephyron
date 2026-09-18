@@ -51,22 +51,39 @@ class SandboxConfig:
     target_mount: Path
     """Host path mounted read-only at `/target` inside the container."""
     command: tuple[str, ...]
-    """Must end by printing exactly the collector's JSON output to stdout —
-    that is the only channel `SandboxResult.output` is filled from."""
+    """`command[0]` always becomes `--entrypoint`, overriding whatever
+    `ENTRYPOINT` the image itself bakes in — a scanner image with its own
+    non-shell entrypoint (e.g. cdxgen's `ENTRYPOINT ["cdxgen"]`) would
+    otherwise get `command` *appended* to it instead of replacing it,
+    confirmed live to produce a broken, confused invocation. In practice
+    every collector passes `("sh", "-c", "<script>")`. The script must end
+    by printing exactly the collector's JSON output to stdout — that is
+    the only channel `SandboxResult.output` is filled from."""
     requires_network: bool = False
     timeout_seconds: int = 900
     memory: str = "4g"
     cpus: str = "2"
     pids_limit: int = 512
     tmpfs_size: str = "2g"
+    tmp_tmpfs_size: str = "512m"
+    """A second, smaller tmpfs at `/tmp` — not in `SECURITY.md §3`'s
+    literal flag block, added after a real collector (cdxgen's `cbom`,
+    T-032) was found live to hardcode `/tmp/cdxgen-temp` for its own
+    scratch cache regardless of `TMPDIR` (`os.tmpdir()`-respecting env
+    vars were tried first and confirmed live not to redirect it), so
+    `--read-only` alone breaks any such tool with `EROFS: read-only file
+    system, mkdtemp '/tmp/...'`. Same security properties as `/work`
+    (`noexec,nosuid,nodev`, ephemeral, ordinary ephemeral scratch space) —
+    this does not weaken the sandbox, it just accepts that "the only
+    writable path is `/work`" was an assumption a real scanner violated."""
     engine: str = "docker"
     """CLAUDE.md §4: Docker or Podman, kept swappable."""
     seccomp_profile: Path = Path("config/seccomp/scanner.json")
     extra_mounts: dict[str, str] = field(default_factory=dict)
     """`{host_path: container_path}`, always mounted `:ro`. For collectors
     that need a second read-only input (e.g. a credential file) beyond the
-    scan target — never a write target; `/work` is the only writable path,
-    and it does not persist past the container's lifetime."""
+    scan target — never a write target; nothing mounted this way persists
+    past the container's lifetime, same as `/work` and `/tmp`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,16 +114,30 @@ def build_sandbox_args(config: SandboxConfig, *, container_name: str) -> list[st
     """Pure — builds a `docker create` argument list without running
     anything, so the exact security flags can be asserted on directly in a
     unit test without a container engine present. `run_sandboxed` is the
-    only thing that has to actually touch Docker/Podman."""
+    only thing that has to actually touch Docker/Podman.
+
+    `command[0]` is always sent as `--entrypoint`, with `command[1:]`
+    appended as the CMD after the image ref. Without this, `command` is
+    merely *appended* to whatever `ENTRYPOINT` the image itself bakes in —
+    a real bug found live while building T-032's cdxgen adapter: the
+    pinned `cdxgen` image has `ENTRYPOINT ["cdxgen"]`, so a config's
+    `command=("sh", "-c", "...")` silently became the process `cdxgen sh
+    -c "..."` (cdxgen receiving "sh"/"-c"/the script string as its own
+    confused CLI arguments) rather than replacing the entrypoint with a
+    shell at all. `busybox` (T-031's own test fixture) has no conflicting
+    `ENTRYPOINT`, which is exactly why this stayed invisible until a
+    collector target a real scanner image with one."""
     _validate_pinned_by_digest(config.image_ref)
 
-    args = [config.engine, "create", "--name", container_name]
+    args = [config.engine, "create", "--name", container_name, "--entrypoint", config.command[0]]
     if not config.requires_network:
         args += ["--network=none"]
     args += [
         "--read-only",
         "--tmpfs",
         f"/work:rw,size={config.tmpfs_size},noexec,nosuid,nodev",
+        "--tmpfs",
+        f"/tmp:rw,size={config.tmp_tmpfs_size},noexec,nosuid,nodev",
         "--user",
         "65534:65534",
         "--cap-drop=ALL",
@@ -125,7 +156,7 @@ def build_sandbox_args(config: SandboxConfig, *, container_name: str) -> list[st
     ]
     for host_path, container_path in config.extra_mounts.items():
         args += ["-v", f"{host_path}:{container_path}:ro"]
-    args += [config.image_ref, *config.command]
+    args += [config.image_ref, *config.command[1:]]
     return args
 
 

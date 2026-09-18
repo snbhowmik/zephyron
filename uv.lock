@@ -1248,12 +1248,14 @@ source = { editable = "packages/collectors" }
 dependencies = [
     { name = "cryptography" },
     { name = "qavach-core" },
+    { name = "qavach-sandbox" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=42" },
     { name = "qavach-core", editable = "packages/core" },
+    { name = "qavach-sandbox", editable = "packages/sandbox" },
 ]
 
 [[package]]

@@ -126,6 +126,7 @@ docker run --rm
   --network=none                       # unless collector.requires_network
   --read-only
   --tmpfs /work:rw,size=2g,noexec,nosuid,nodev
+  --tmpfs /tmp:rw,size=512m,noexec,nosuid,nodev
   --user 65534:65534
   --cap-drop=ALL
   --security-opt=no-new-privileges
@@ -146,9 +147,12 @@ docker run --rm
   unrestricted egress.
 - **Output crosses the boundary as the container's stdout** — one JSON blob,
   captured with `docker logs` after the container exits, before it is
-  removed. `/work` is scratch space for anything the scanner needs to write
-  along the way, still `noexec,nosuid,nodev`; it is not the retrieval
-  channel. (Verified live, T-031: a `--tmpfs` mount is torn down the moment
+  removed. `/work` (and `/tmp` — added after T-032 found a real scanner,
+  cdxgen's `cbom`, hardcodes `/tmp/cdxgen-temp` for its own scratch cache
+  regardless of `TMPDIR`) are scratch space for anything the scanner needs
+  to write along the way, still `noexec,nosuid,nodev`; neither is the
+  retrieval channel. (Verified live, T-031: a `--tmpfs` mount is torn down
+  the moment
   its container *stops*, not when it is `rm`'d — `docker cp
   <container>:/work/result.json` 404s against an already-exited container
   even with the container object still present. `docker logs` has no such
@@ -157,6 +161,14 @@ docker run --rm
   file needs a command that ends by printing it, e.g. `scanner -o
   /work/bom.json && cat /work/bom.json`.) The worker never reads arbitrary
   paths the scanner wrote — stdout is the only channel data crosses on.
+- **The collector's command always overrides the image's own `ENTRYPOINT`**
+  (`--entrypoint <command[0]>`), never relies on it. A real bug, T-032: the
+  pinned cdxgen image bakes `ENTRYPOINT ["cdxgen"]`; a config that sent
+  `("sh", "-c", "...")` as plain CMD without this override got it *appended*
+  to that entrypoint — the actual process became the nonsensical `cdxgen sh
+  -c "..."`, with cdxgen receiving "sh"/"-c"/the script text as its own
+  confused CLI arguments. Invisible in T-031's own tests because `busybox`
+  has no conflicting `ENTRYPOINT` to collide with.
 - **Timeout enforced by the orchestrator**, not by the container. Default 900s.
   A hung scanner is a failed collector (`partial=True`), not a hung scan.
 - **Failure is isolated.** A crashed, OOM-killed or timed-out collector

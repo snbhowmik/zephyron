@@ -66,6 +66,17 @@ def test_read_only_rootfs_and_tmpfs_work_dir() -> None:
     assert args[tmpfs_idx] == "/work:rw,size=2g,noexec,nosuid,nodev"
 
 
+def test_tmp_also_gets_a_tmpfs() -> None:
+    """T-032 finding: a real scanner (cdxgen's `cbom`) hardcodes
+    `/tmp/cdxgen-temp` for its own scratch cache, ignoring `TMPDIR` —
+    confirmed live — so `--read-only` alone breaks it with `EROFS`. `/tmp`
+    gets the same `noexec,nosuid,nodev` tmpfs treatment as `/work`, just
+    smaller by default."""
+    args = build_sandbox_args(_config(), container_name="x")
+    tmpfs_values = [args[i + 1] for i, a in enumerate(args) if a == "--tmpfs"]
+    assert "/tmp:rw,size=512m,noexec,nosuid,nodev" in tmpfs_values
+
+
 def test_runs_as_unprivileged_nobody_user() -> None:
     args = build_sandbox_args(_config(), container_name="x")
     user_idx = args.index("--user") + 1
@@ -105,11 +116,29 @@ def test_extra_mounts_are_also_read_only() -> None:
     assert "/host/cred:/creds/token:ro" in args
 
 
-def test_image_and_command_are_last() -> None:
+def test_image_and_remaining_command_are_last() -> None:
+    """`command[0]` goes to `--entrypoint`; only `command[1:]` trails the
+    image ref as CMD."""
     args = build_sandbox_args(
         _config(image_ref=PINNED_IMAGE, command=("scan", "--flag")), container_name="x"
     )
-    assert args[-3:] == [PINNED_IMAGE, "scan", "--flag"]
+    assert args[-2:] == [PINNED_IMAGE, "--flag"]
+
+
+def test_command_first_element_becomes_the_entrypoint() -> None:
+    """Real bug found live in T-032: without this, `command` is merely
+    *appended* to whatever `ENTRYPOINT` the image bakes in — cdxgen's
+    pinned image has `ENTRYPOINT ["cdxgen"]`, so `("sh", "-c", "...")`
+    silently became the confused process `cdxgen sh -c "..."` instead of
+    replacing the entrypoint with a shell."""
+    args = build_sandbox_args(
+        _config(command=("sh", "-c", "echo hi")),
+        container_name="x",
+    )
+    entrypoint_idx = args.index("--entrypoint") + 1
+    assert args[entrypoint_idx] == "sh"
+    assert "-c" in args
+    assert "echo hi" in args
 
 
 def test_engine_is_swappable_to_podman() -> None:

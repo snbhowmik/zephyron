@@ -5,11 +5,13 @@ description = "Collector protocol implementations. Every source — delegated su
 requires-python = ">=3.12"
 dependencies = [
     "qavach-core",
+    "qavach-sandbox",
     "cryptography>=42",
 ]
 
 [tool.uv.sources]
 qavach-core = { workspace = true }
+qavach-sandbox = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

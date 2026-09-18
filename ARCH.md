@@ -229,7 +229,7 @@ Every collector with `requires_sandbox = True` runs in a fresh container:
 
 ```
 --network=none                    (unless the collector declares requires_network)
---read-only  --tmpfs /work:size=2g,noexec
+--read-only  --tmpfs /work:size=2g,noexec  --tmpfs /tmp:size=512m,noexec
 --user 65534:65534  --cap-drop=ALL  --security-opt no-new-privileges
 --pids-limit 512  --memory 4g  --cpus 2
 timeout: per-collector, default 900s
@@ -239,8 +239,10 @@ The scan target is mounted read-only. Output leaves via the container's
 stdout — captured with `docker logs` after exit, before removal — not a file
 on the tmpfs mount (`SECURITY.md §3` has the reason: a tmpfs mount does not
 survive `docker cp` once its container has stopped, verified live in T-031).
-`/work` remains scratch space, still `noexec,nosuid,nodev`. Nothing but that
-one stdout blob crosses the boundary.
+`/work` and `/tmp` remain scratch space, still `noexec,nosuid,nodev` — `/tmp`
+was added after T-032 found a real scanner (cdxgen's `cbom`) fails under
+`--read-only` otherwise, hardcoding `/tmp/cdxgen-temp` regardless of `TMPDIR`.
+Nothing but the one stdout blob crosses the boundary.
 
 Build-tool dependency resolution needs network and is therefore **off by
 default**. `--allow-build-resolution` enables it with an egress allowlist
