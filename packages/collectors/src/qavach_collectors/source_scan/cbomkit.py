@@ -27,15 +27,17 @@ how `PRD.md FR-101` states its other coverage caveats.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
-from qavach_core.model import ConfidenceTier
+from qavach_core.model import ConfidenceTier, FileLocus
 from qavach_core.normalize import AliasTable, CryptographyRegistry, normalise_bom
 from qavach_sandbox import SandboxConfig, run_sandboxed
 
 from qavach_collectors.base import (
     CollectorError,
     CollectorResult,
+    RawClaim,
     RawFormat,
     RunContext,
     Target,
@@ -54,6 +56,20 @@ _COMMAND = (
     "QavachScan",
     "/target",
 )
+
+
+def _relative_to_target(claim: RawClaim) -> RawClaim:
+    """cbomkit-lib reports paths relative to the *parent* of the scanned
+    directory, so every location arrives as `target/app.py` (seen in the
+    recorded corpus, T-024). Every other collector reports paths relative to
+    the scan root; leaving the prefix would make the same file two different
+    loci and stop cross-tool corroboration from ever matching."""
+    locus = claim.locus
+    if isinstance(locus, FileLocus) and locus.path.startswith("target/"):
+        return replace(
+            claim, locus=FileLocus(path=locus.path.removeprefix("target/"), offset=locus.offset)
+        )
+    return claim
 
 
 class ImageNotBuiltError(RuntimeError):
@@ -131,7 +147,7 @@ class CbomkitCollector:
             return degraded(f"cbomkit-lib output could not be normalised: {exc}")
 
         claims = [
-            claim
+            _relative_to_target(claim)
             for item in normalised
             for claim in normalised_to_raw_claims(
                 item, target=target, confidence=self.default_confidence

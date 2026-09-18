@@ -66,7 +66,15 @@ class MergeResult:
     provenance tier. Distinct from per-attribute precedence (see
     `_usage_attribute_rank`), which governs `concluded_mode`/`padding`."""
     disputed: bool
+    """True while at least one dispute is unresolved. Resolved (adjudicated)
+    disputes stay in `disputes` — both records are retained (I4)."""
     disputes: tuple[Dispute, ...]
+
+    @property
+    def unresolved_disputes(self) -> tuple[Dispute, ...]:
+        """What `ARCH.md §6.4`'s "scored at its worst plausible claim until
+        adjudicated" applies to."""
+        return tuple(d for d in self.disputes if not d.resolved)
 
 
 _USAGE_OBSERVING_TIERS = frozenset({ConfidenceTier.RUNTIME, ConfidenceTier.AST})

@@ -51,6 +51,7 @@ class Dispute:
     adjudicated_value: str | None = None
     adjudicated_by: str | None = None
     adjudicated_at: datetime | None = None
+    adjudication_reason: str | None = None
 
     @property
     def resolved(self) -> bool:

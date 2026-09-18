@@ -5,6 +5,15 @@ derivation is implemented so far; identity/merge/dispute are Phase 2."""
 
 from __future__ import annotations
 
+from qavach_core.reconcile.adjudicate import (
+    Adjudication,
+    AdjudicationOutcome,
+    Unapplied,
+    adjudicate,
+    adjudication_from_dict,
+    adjudication_to_dict,
+    apply_adjudications,
+)
 from qavach_core.reconcile.authority import (
     EXTERNALLY_SPECIFIED_CRYPTO_REGIMES,
     AuthorityContext,
@@ -21,6 +30,13 @@ from qavach_core.reconcile.merge import (
 )
 
 __all__ = [
+    "Adjudication",
+    "AdjudicationOutcome",
+    "Unapplied",
+    "adjudicate",
+    "adjudication_from_dict",
+    "adjudication_to_dict",
+    "apply_adjudications",
     "EXTERNALLY_SPECIFIED_CRYPTO_REGIMES",
     "AuthorityContext",
     "ConcludedAttribute",

@@ -117,6 +117,15 @@ names:
   AES/CBC/PKCS5Padding: { family: AES, parameter_set: null }
   AES-GCM: { family: AES }
   AES-CBC: { family: AES }
+  # --- Spellings seen in *real recorded* scanner output (T-024) ---
+  # cdxgen emits bare lower-case names when it has no algorithmFamily; the
+  # registry match is exact-case, so these resolved to UNKNOWN before.
+  rsa: { family: RSASSA-PKCS1 }
+  des: { family: DES }
+  aes: { family: AES }
+  sha-256: { family: SHA-2, parameter_set: "256" }
+  # cbomkit's name for Cipher.getInstance("DES/ECB/...") — 56 is DES's key size.
+  DES-56-ECB: { family: DES, parameter_set: "56" }
   Ed25519ph: { family: EdDSA }
   Ed448ph: { family: EdDSA }
 

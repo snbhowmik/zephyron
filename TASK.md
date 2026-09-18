@@ -66,8 +66,8 @@ correct concluded tier. Two contradictory claims at the same tier produce a
 | x | T-021 ★ | `Locus` types per `ARCH.md §6.2`, with parsers and round-trip serialisation. | T-010 |
 | x | T-022 ★ | Merge engine: group by identity, retain all occurrences, conclude by precedence. | T-020, T-021 |
 | x | T-023 ★ | Dispute detection on material attributes at equal-or-higher tier. Disputed assets score at their worst plausible claim. | T-022 |
-| ☐ | T-024 ★ | Fixture corpus in `tests/fixtures/scanner-output/` — real recorded output from cdxgen, CBOMkit, Opengrep, Syft over the same target. **These fixtures are the backbone of the whole test suite; record them properly and check them in.** | T-030 |
-| ☐ | T-025 | Adjudication: persist an operator's resolution of a dispute; it survives re-scan. | T-023, T-041 |
+| ☒ | T-024 ★ | Fixture corpus in `tests/fixtures/scanner-output/` — real recorded output from cdxgen, CBOMkit, Opengrep, Syft over the same target. **These fixtures are the backbone of the whole test suite; record them properly and check them in.** | T-030 |
+| ☒ | T-025 | Adjudication: persist an operator's resolution of a dispute; it survives re-scan. | T-023, T-041 |
 
 ---
 

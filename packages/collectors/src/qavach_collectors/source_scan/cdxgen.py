@@ -52,6 +52,10 @@ CDXGEN_IMAGE = (
 CDXGEN_VERSION = "13.0.1"
 
 
+_CRYPTO_TYPES = ("python", "java", "js", "go", "rust", "c", "dotnet", "php", "ruby")
+"""Ecosystems passed to `cdxgen -t`. See the note in `collect()`."""
+
+
 class CdxgenCollector:
     name = "source_scan.cdxgen"
     version = CDXGEN_VERSION
@@ -99,10 +103,18 @@ class CdxgenCollector:
         # README recommends for anything beyond bare defaults. No `-t`
         # flag is forced — auto-detection avoids unconditionally
         # triggering the Maven-dependent Java path for non-Java targets.
+        #
+        # SUPERSEDED (T-024): recording real output over a multi-language
+        # target showed auto-detection returns *dependencies only* — zero
+        # `cryptographic-asset` components — while an explicit `-t` list
+        # finds them (python, java, C, C#, PHP: 9 assets vs 0). So the
+        # crypto-capable ecosystems are named explicitly (`_CRYPTO_TYPES`).
+        # `-t java --no-install-deps` stays offline-safe (verified).
+        types = " ".join(f"-t {t}" for t in _CRYPTO_TYPES)
         command = (
             "sh",
             "-c",
-            f"cdxgen --include-crypto {install_flag} "
+            f"cdxgen --include-crypto {types} {install_flag} "
             "-o /work/bom.json /target >/work/cdxgen-run.log 2>&1 "
             "&& cat /work/bom.json",
         )
