@@ -1,0 +1,60 @@
+# SECURITY.md §4 — the TLS endpoint collector accepts operator-supplied
+# host:port targets, which is an SSRF primitive by construction. This file
+# is the denylist checked *after* DNS resolution and *before* connecting
+# ("resolve then pin" — SECURITY.md §4: never resolve twice, or a
+# DNS-rebinding attack can swap the address between check and connect).
+#
+# `own_network_cidrs` is deliberately empty here — "any address resolving
+# into the QAVACH deployment's own network segment" is environment-specific
+# and cannot be curated once for every deployment; an operator/deployment
+# config sets it for their own environment. Everything else below is a
+# fixed, universal denylist that applies regardless of where QAVACH runs.
+
+denied_cidrs:
+  # Cloud instance metadata endpoints — the single most common real-world
+  # SSRF target (AWS/GCP/Azure/OCI all use the same link-local address).
+  - 169.254.169.254/32
+  - fd00:ec2::254/128 # AWS IMDSv2 IPv6 endpoint
+
+  # Link-local and loopback.
+  - 169.254.0.0/16
+  - 127.0.0.0/8
+  - ::1/128
+  - fe80::/10
+
+  # RFC 1918 / RFC 4193 private ranges. A TLS endpoint scan targets
+  # operator-supplied *external* or explicitly-scoped internal hosts, but
+  # the denylist itself must fail closed against them by default; an
+  # operator scanning their own internal estate opts in per-target via the
+  # dashboard's explicit host list, not by this file silently allowing all
+  # private space.
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - fc00::/7
+
+  # Reserved / special-use (RFC 6890) not covered above.
+  - 0.0.0.0/8
+  - 100.64.0.0/10 # carrier-grade NAT
+  - 192.0.0.0/24
+  - 192.0.2.0/24 # TEST-NET-1
+  - 198.18.0.0/15 # benchmarking
+  - 198.51.100.0/24 # TEST-NET-2
+  - 203.0.113.0/24 # TEST-NET-3
+  - 224.0.0.0/4 # multicast
+  - 240.0.0.0/4 # reserved
+
+denied_hostnames:
+  - metadata.google.internal
+  - metadata.goog
+
+# Kubernetes service CIDR and API server, "when detected" (SECURITY.md
+# §4): populated at runtime from KUBERNETES_SERVICE_HOST /
+# KUBERNETES_SERVICE_PORT when QAVACH itself is running inside a
+# Kubernetes pod, not curated here — see
+# packages/collectors/src/qavach_collectors/tls/ssrf.py's
+# `kubernetes_service_cidr()`.
+
+# Populated per deployment, never checked into version control with a
+# real value — see this file's own module docstring.
+own_network_cidrs: []
