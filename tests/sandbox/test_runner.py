@@ -333,3 +333,24 @@ def test_relative_target_mount_is_resolved_to_an_absolute_path() -> None:
     mount = args[args.index("-v") + 1]
     assert mount == f"{Path('some/relative/dir').resolve()}:/target:ro"
     assert mount.startswith("/")
+
+
+def _tmpfs(args: list[str], mount: str) -> str:
+    return next(a for a in args if a.startswith(f"{mount}:"))
+
+
+def test_tmp_is_noexec_by_default_and_exec_only_on_explicit_opt_in() -> None:
+    def build(**kw: bool) -> list[str]:
+        return build_sandbox_args(
+            SandboxConfig(
+                image_ref="sha256:" + "a" * 64, target_mount=None, command=("true",), **kw
+            ),
+            container_name="c",
+        )
+
+    assert ",noexec," in _tmpfs(build(), "/tmp")
+    opted = build(tmp_exec=True)
+    assert ",exec," in _tmpfs(opted, "/tmp") and ",noexec" not in _tmpfs(opted, "/tmp")
+    assert "nosuid,nodev" in _tmpfs(opted, "/tmp")
+    assert ",noexec," in _tmpfs(opted, "/work")  # /work never relaxes
+    assert "--cap-drop=ALL" in opted and "--read-only" in opted

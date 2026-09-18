@@ -101,7 +101,7 @@ failure rather than an exception escaping.
 | ☒ | T-041 | HSM evidence collector: PKCS#11 config, vendor client libraries, `SunPKCS11` JVM config, slot references. Emits an **unresolved crypto boundary**, not a resolved asset. **Runs exclusively via the deployed agent.** | T-031a, T-031b |
 | ☒ | T-042 | SSH host key collector — network probe (banner/KEX negotiation) only, shares `tls.endpoint`'s sandboxed transport. `sshd_config` KEX/cipher/MAC inspection is a separate agent-mode task (folded into T-036's scope note; local file access requires the agent, `ARCH.md §2.3`). | T-030 |
 | ☒ | T-043 | External CBOM ingestion — upload a CycloneDX 1.4–1.7 CBOM as a first-class source. | T-014 |
-| ☐ | T-044 | `tracebom` runtime adapter. | T-031 |
+| ☒ | T-044 | `tracebom` runtime adapter. | T-031 |
 | ☒ | T-045 | **AD Certificate Services collector**, wrapping Certipy (MIT) — `find -json` over LDAP with an operator-supplied domain credential. Network-mode sandboxed subprocess, not agent-mode — no host install. Maps ESC1–ESC8 findings and template algorithms onto QAVACH's finding classes (`PRD.md FR-135`). | T-031 **Built and image-verified; NOT verified against a real AD** — fixtures are derived from Certipy's source, not recorded. `NOTE.md` OQ-13/14. |
 
 ---

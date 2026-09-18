@@ -151,7 +151,11 @@ docker run --rm
   cdxgen's `cbom`, hardcodes `/tmp/cdxgen-temp` for its own scratch cache
   regardless of `TMPDIR`) are scratch space for anything the scanner needs
   to write along the way, still `noexec,nosuid,nodev`; neither is the
-  retrieval channel. (Verified live, T-031: a `--tmpfs` mount is torn down
+  retrieval channel. **One named exception:** `SandboxConfig.tmp_exec=True`
+  mounts `/tmp` `exec` (still `nosuid,nodev`, `/work` still `noexec`). Only
+  `runtime.tracebom` sets it — its native helper stages an executable under
+  `/tmp`, and without it the run returns an empty result *with exit 0*
+  (T-044, verified live). Every other flag in this block still applies. (Verified live, T-031: a `--tmpfs` mount is torn down
   the moment
   its container *stops*, not when it is `rm`'d — `docker cp
   <container>:/work/result.json` 404s against an already-exited container

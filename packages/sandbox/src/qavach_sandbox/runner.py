@@ -80,6 +80,14 @@ class SandboxConfig:
     (`noexec,nosuid,nodev`, ephemeral, ordinary ephemeral scratch space) —
     this does not weaken the sandbox, it just accepts that "the only
     writable path is `/work`" was an assumption a real scanner violated."""
+    tmp_exec: bool = False
+    """The one explicit exception to `noexec` scratch (`SECURITY.md §3`):
+    mounts `/tmp` `exec` instead of `noexec`. Only `runtime.tracebom` sets it
+    — its native helper stages an executable under `/tmp`, verified live to
+    yield a silently empty result without it (T-044). `nosuid,nodev`,
+    `--cap-drop=ALL`, `no-new-privileges`, seccomp, `--read-only` and
+    `--network=none` all still apply, and `/work` stays `noexec`. Defaults to
+    False, like `requires_network`."""
     engine: str = "docker"
     """CLAUDE.md §4: Docker or Podman, kept swappable."""
     seccomp_profile: Path = Path("config/seccomp/scanner.json")
@@ -167,6 +175,7 @@ def build_sandbox_args(config: SandboxConfig, *, container_name: str) -> list[st
     _validate_pinned_by_digest(config.image_ref)
 
     args = [config.engine, "create", "--name", container_name, "--entrypoint", config.command[0]]
+    tmp_exec_flag = "exec" if config.tmp_exec else "noexec"
     if not config.requires_network:
         args += ["--network=none"]
     args += [
@@ -174,7 +183,7 @@ def build_sandbox_args(config: SandboxConfig, *, container_name: str) -> list[st
         "--tmpfs",
         f"/work:rw,size={config.tmpfs_size},noexec,nosuid,nodev",
         "--tmpfs",
-        f"/tmp:rw,size={config.tmp_tmpfs_size},noexec,nosuid,nodev",
+        f"/tmp:rw,size={config.tmp_tmpfs_size},{tmp_exec_flag},nosuid,nodev",
         "--user",
         "65534:65534",
         "--cap-drop=ALL",

@@ -59,6 +59,23 @@ qavach_built_images:
     verified_on: 2026-09-19
     digest: null
 
+  runtime.tracebom:
+    upstream: cdxgen/cdxgen (tracebom)
+    upstream_licence: Apache-2.0
+    base_image: ghcr.io/cdxgen/cdxgen@sha256:1d4418545662790662567f96af62bf0f8a444eb552bf2c4cb7b35eb0a7d6234e
+    dockerfile: docker/tracebom/Dockerfile
+    build_command: make build-images
+    reason: >
+      tracebom ships in the cdxgen image but its native helper
+      (safer-exec-rt) is mode 0444, and the sandbox runs as uid 65534, so
+      spawn fails with EACCES *and tracebom still exits 0 with an empty BOM*.
+      The derived image sets the execute bit and changes nothing else.
+      Needs an exec /tmp (SandboxConfig.tmp_exec, SECURITY.md section 3
+      exception).
+    built_by: T-044
+    verified_on: 2026-09-19
+    digest: null
+
   source_scan.cbomkit:
     upstream: cbomkit/cbomkit-lib
     upstream_licence: Apache-2.0
