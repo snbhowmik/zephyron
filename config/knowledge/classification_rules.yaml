@@ -48,9 +48,20 @@ classical_weak_key_size_threshold:
 grover_affected:
   - family: AES
     parameter_set: "128"
+  # SHA-256: CLAUDE.md invariant I1 names "SHA-256 in some uses" as
+  # GROVER_AFFECTED. A 256-bit hash keeps ~128-bit preimage strength against
+  # Grover - the same post-quantum margin as AES-128 - so it gets the same
+  # informational class rather than falling through to UNKNOWN (T-120 found it
+  # reporting the most common hash in existence as a coverage failure).
+  - family: SHA-2
+    parameter_set: "256"
 
 # Unconditional quantum-safe.
 quantum_safe_families:
+  - SHA-3 # ARCH.md 7.1 lists "SHA3-*" as quantum-safe at every output size
+  # ChaCha20 always uses a 256-bit key (RFC 8439): the same post-quantum margin as
+  # AES-256, which is quantum-safe here. QAVACH's judgement, not ARCH.md's table.
+  - ChaCha20
   - ML-KEM
   - ML-DSA
   - SLH-DSA
@@ -67,4 +78,3 @@ quantum_safe_families:
 quantum_safe_symmetric_threshold:
   AES: 256
   SHA-2: 384
-  SHA-3: 0

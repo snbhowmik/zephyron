@@ -29,7 +29,7 @@ from typing import Any
 
 from qavach_core.export.cbom import bom_ref
 from qavach_core.model.asset import CryptoAsset
-from qavach_core.model.enums import CryptoFunction, FindingClass
+from qavach_core.model.enums import ConfidenceTier, CryptoFunction, FindingClass
 from qavach_core.recommend import Recommendation
 from qavach_core.risk import AssetRiskScore
 from qavach_core.roadmap import Roadmap
@@ -83,6 +83,7 @@ def _entry(item: RegisterInput, roadmap: Roadmap | None) -> dict[str, Any]:
         "outcome": score.outcome,
         "reason": score.reason,
         "disputed": asset.disputed,
+        "capability_only": asset.concluded_from <= ConfidenceTier.DEPENDENCY,
         "mosca": None,
         "expected_value": None,
         "z_effective": None,
@@ -155,9 +156,15 @@ def build_register(
             "by_finding_class": dict(sorted(by_class.items())),
             "by_band": dict(sorted(by_band.items())),
             "coverage_failures": unknown,
+            "coverage_failures_capability_only": sum(
+                1
+                for e in entries
+                if e["finding_class"] == FindingClass.UNKNOWN.value and e["capability_only"]
+            ),
             "coverage_failure_note": (
                 "Assets that could not be classified are a coverage failure, not a risk "
-                "verdict, and are never counted as safe."
+                "verdict, and are never counted as safe. `capability_only` entries rest on "
+                "dependency-level evidence (a library that CAN do this), not observed usage."
             ),
             "unassigned": sum(1 for e in entries if e["system_id"] is None),
         },

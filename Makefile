@@ -61,8 +61,8 @@ schema-check: ## CBOM valid against CycloneDX 1.7 offline, no risk data in it, r
 scanners-pull: ## pull pinned scanner container images
 	ENGINE=$(ENGINE) uv run python3 scripts/pull_scanners.py
 
-demo: ## seed the demo dataset and open the UI
-	@echo "No demo dataset yet — see TASK.md T-120." >&2; exit 1
+demo: ## real recorded scanner output through every layer; validates the CBOM (T-120, first cut)
+	uv run python scripts/demo.py
 
 build-images: ## build QAVACH-owned scanner images and print their content-addressed IDs
 	$(ENGINE) build -t qavach/cbomkit-lib:dev docker/cbomkit-lib

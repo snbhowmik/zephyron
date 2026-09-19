@@ -1,0 +1,3 @@
+id,name,owner,criticality,data_classification,internet_facing,retention_years,regulatory_regimes,depends_on,repos
+payments-core,Payments Core,payments-team,5,restricted,true,10,cii;sebi-re,settlement,github.com/acme/polyglot-payments
+settlement,Settlement Service,treasury-team,4,confidential,false,,cii,payments-core,github.com/acme/polyglot-payments

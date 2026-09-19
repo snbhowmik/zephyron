@@ -74,13 +74,30 @@ def test_ml_kem_is_quantum_safe(rules: ClassificationRules) -> None:
     assert classify("ML-KEM", "768", rules=rules).finding_class == FindingClass.QUANTUM_SAFE
 
 
-def test_sha_256_is_unknown_not_safe_and_not_grover(rules: ClassificationRules) -> None:
-    """ARCH.md §7.1 lists SHA-384/512 as quantum-safe and does not name
-    SHA-256 anywhere in the table. Invariant I8: an algorithm this table
-    has no opinion on must fall through to UNKNOWN, never be assumed safe
-    by an absent rule."""
+def test_sha_256_is_grover_affected_informational_never_safe_and_never_migrate_now(
+    rules: ClassificationRules,
+) -> None:
+    """CLAUDE.md invariant I1 names "SHA-256 in some uses" as GROVER_AFFECTED
+    (informational). An earlier version of this test pinned it as UNKNOWN because
+    ARCH.md 7.1's table omits it; recorded end-to-end on real scanner output
+    (T-120), that reported the most common hash in existence as a coverage
+    failure. A 256-bit hash keeps ~128-bit preimage strength against Grover - the
+    same margin as AES-128 - so it gets the same informational class. It is NOT
+    quantum-safe (that stays reserved for 384+), and never "migrate now"."""
     result = classify("SHA-2", "256", rules=rules)
-    assert result.finding_class == FindingClass.UNKNOWN
+    assert result.finding_class == FindingClass.GROVER_AFFECTED
+    assert result.finding_class != FindingClass.QUANTUM_SAFE
+
+
+def test_sha_256_with_no_parameter_is_still_unknown(rules: ClassificationRules) -> None:
+    """The class depends on the width; with no width we cannot say (I8)."""
+    assert classify("SHA-2", None, rules=rules).finding_class == FindingClass.UNKNOWN
+
+
+def test_chacha20_is_quantum_safe_because_its_key_is_always_256_bits(
+    rules: ClassificationRules,
+) -> None:
+    assert classify("ChaCha20", None, rules=rules).finding_class == FindingClass.QUANTUM_SAFE
 
 
 def test_sha_384_and_512_are_quantum_safe(rules: ClassificationRules) -> None:

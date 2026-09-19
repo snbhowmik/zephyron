@@ -38,7 +38,9 @@ class Occurrence:
 class CryptoAsset:
     identity: AssetIdentity
     asset_type: AssetType
-    function: CryptoFunction
+    function: CryptoFunction | None
+    """`None` when the function could not be determined. Never guessed: an asset
+    with no function is scored at its worst plausible reading (I8)."""
     algorithm_family: str  # canonical, from the CDX 1.7 Cryptography Registry
     parameter_set: str | None  # "2048", "P-256", "ML-KEM-768"
     curve: str | None  # canonical, from the CDX 1.7 curve registry

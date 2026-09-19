@@ -27,10 +27,8 @@ from qavach_collectors.source_scan import (
 from qavach_collectors.source_scan import cbomkit as cbomkit_mod
 from qavach_collectors.source_scan import cdxgen as cdxgen_mod
 from qavach_collectors.source_scan import opengrep as opengrep_mod
-from qavach_core.model.enums import AssetType
 from qavach_core.normalize import AliasTable, CryptographyRegistry, resolve_algorithm
 from qavach_core.normalize.resolve import RawAlgorithmClaim, ResolvedAlgorithm
-from qavach_core.reconcile import IdentityClaim, OccurrenceClaim, asset_identity, merge_all
 from qavach_sandbox import SandboxResult
 
 ROOT = Path(__file__).parent.parent.parent
@@ -169,63 +167,61 @@ def test_every_recorded_claim_resolves_none_falls_to_unknown(
     assert unresolved == []
 
 
-def _merged(claims: dict[str, list[RawClaim]]):  # type: ignore[no-untyped-def]
-    occurrences = []
-    for tool, tool_claims in claims.items():
-        for c in tool_claims:
-            r = _resolve(c)
-            assert r is not None
-            identity = asset_identity(
-                IdentityClaim(
-                    asset_type=AssetType.ALGORITHM,
-                    algorithm_family=r.algorithm_family,
-                    parameter_set=r.parameter_set,
-                    primitive=r.primitive,
-                    oid=r.oid,
-                )
-            )
-            occurrences.append(
-                (
-                    r,
-                    OccurrenceClaim(
-                        identity=identity,
-                        locus=c.locus,
-                        collector=tool,
-                        tool_version="1",
-                        confidence=c.confidence,
-                        detection_method=c.detection_method,
-                        raw_ref="r",
-                        observed_at=datetime(2026, 9, 19, tzinfo=UTC),
-                        mode=c.mode,
-                        padding=c.padding,
-                    ),
-                )
-            )
-    return occurrences, merge_all([o for _, o in occurrences])
+def _assemble(claims: dict[str, list[RawClaim]]):  # type: ignore[no-untyped-def]
+    from qavach_core.model.enums import ConfidenceTier  # noqa: F401
+    from qavach_core.pipeline import AssembleKnowledge, ClaimInput, FamilyFunctions, assemble
+    from qavach_core.risk import ClassificationRules
+
+    knowledge = AssembleKnowledge(
+        registry=REGISTRY,
+        aliases=ALIASES,
+        rules=ClassificationRules.from_dict(
+            yaml.safe_load((ROOT / "config/knowledge/classification_rules.yaml").read_text())
+        ),
+        family_functions=FamilyFunctions.from_dict(
+            yaml.safe_load((ROOT / "config/knowledge/family_functions.yaml").read_text())
+        ),
+    )
+    inputs = [
+        ClaimInput(
+            name=c.name,
+            oid=c.oid,
+            primitive=c.primitive,
+            parameter_set=c.parameter_set,
+            mode=c.mode,
+            padding=c.padding,
+            locus=c.locus,
+            collector=tool,
+            tool_version="1",
+            confidence=c.confidence,
+            detection_method=c.detection_method,
+            raw_ref="r",
+            observed_at=datetime(2026, 9, 19, tzinfo=UTC),
+        )
+        for tool, tool_claims in claims.items()
+        for c in tool_claims
+    ]
+    return inputs, assemble(inputs, knowledge)
 
 
 def test_reconciliation_conserves_every_claim_and_invents_no_dispute(
     claims: dict[str, list[RawClaim]],
 ) -> None:
-    occurrences, merged = _merged(claims)
-    total = sum(len(v) for v in claims.values())
-    assert sum(len(m.occurrences) for m in merged) == total  # I4: nothing dropped
-    assert not any(m.disputed for m in merged)
+    inputs, result = _assemble(claims)
+    assert sum(len(a.occurrences) for a in result.assets) == len(inputs)  # I4: nothing dropped
+    assert not any(a.disputed for a in result.assets)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="OQ-18: ARCH.md 6.1 hashes the raw OID and primitive into asset identity, and the "
-    "tools disagree on both (cdxgen labels SHA-1 with a Novell OID), so the same algorithm "
-    "fragments into several assets.",
-)
 def test_the_same_algorithm_from_different_tools_is_one_asset(
     claims: dict[str, list[RawClaim]],
 ) -> None:
-    occurrences, merged = _merged(claims)
-    md5 = [
-        m
-        for m in merged
-        if any(r.algorithm_family == "MD5" for r, o in occurrences if o.identity == m.identity)
-    ]
+    """OQ-18, resolved (NOTE.md): ARCH.md 6.1 hashed the raw OID and primitive
+    into identity, the tools disagree on both (cdxgen labels SHA-1 with a Novell
+    OID), and one MD5 became three assets on this very corpus. Identity is now
+    the resolved core only, and fixed-size families are canonicalised."""
+    _, result = _assemble(claims)
+    md5 = [a for a in result.assets if a.algorithm_family == "MD5"]
     assert len(md5) == 1
+    assert {o.collector for o in md5[0].occurrences} >= {"cdxgen", "cbomkit", "opengrep"}
+    sha1 = [a for a in result.assets if a.algorithm_family == "SHA-1"]
+    assert len(sha1) == 1 and sha1[0].oid is None  # the wrong Novell OID was not adopted

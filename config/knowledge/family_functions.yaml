@@ -1,0 +1,38 @@
+# The assembler (qavach_core.pipeline) needs a CryptoFunction for every asset,
+# and Mosca depends on it (invariant I2). A claim normally says what it does
+# (`primitive`); when it does not - cdxgen, for one, often omits it - this file
+# supplies a DEFAULT function for families whose function is unambiguous in
+# practice. It is engineering judgement, not a published table (ARCH.md gives no
+# cross-reference), and a family is deliberately ABSENT when it is genuinely
+# ambiguous (SM2, ElGamal, Ascon, HPKE...): such an asset gets no function
+# rather than a guess, and is scored at its worst plausible reading (I8).
+#
+# A claim's own `primitive`, when present, always wins over this table.
+# tests/core/test_assemble.py checks every name here against the vendored
+# Cryptography Registry so a typo cannot silently disable a default.
+
+default_function:
+  signature: [RSASSA-PKCS1, RSASSA-PSS, RSA-X931, DSA, ECDSA, EdDSA, ML-DSA, SLH-DSA, LMS, XMSS, BLS]
+  key-agreement: [ECDH, FFDH, MQV, X3DH]
+  key-encapsulation: [ML-KEM]
+  encryption:
+    [AES, 3DES, DES, RC2, RC4, RC5, RC6, Blowfish, CAMELLIA, CAST5, CAST6, ARIA, SEED, SM4,
+     Serpent, Twofish, IDEA, Skipjack, ChaCha, ChaCha20, Salsa20, RSAES-OAEP, RSAES-PKCS1, ECIES]
+  hash: [MD2, MD4, MD5, SHA-1, SHA-2, SHA-3, RIPEMD, Whirlpool, BLAKE2, BLAKE3, SM3]
+  mac: [HMAC, CMAC, UMAC, Poly1305, SipHash, PBMAC1]
+  kdf: [HKDF, PBKDF1, PBKDF2, scrypt, bcrypt, Argon2, yescrypt, ANSI-KDF, SP800-108, SP800-56C, TLS-PRF, SSH-KDF, IKE-PRF]
+  drbg: [CTR_DRBG, HMAC_DRBG, Hash_DRBG, Fortuna, Yarrow]
+
+# Families with exactly one output size / parameter. Tools disagree on whether
+# to report it (cbomkit gives MD5 "128", cdxgen and Opengrep give none), which
+# fragmented one algorithm into several assets on real recorded output (T-024).
+# Canonicalised so a missing value and the fixed value are the same asset.
+fixed_parameter_set:
+  MD2: "128"
+  MD4: "128"
+  MD5: "128"
+  SHA-1: "160"
+
+# Families whose parameter is an elliptic CURVE name rather than a size; the
+# assembler resolves it through the curve registry and stores it in `curve`.
+curve_families: [ECDSA, ECDH, EdDSA, ECIES, MQV, SM2]

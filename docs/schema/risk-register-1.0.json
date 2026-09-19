@@ -32,12 +32,13 @@
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["total", "by_finding_class", "by_band", "coverage_failures", "coverage_failure_note", "unassigned"],
+      "required": ["total", "by_finding_class", "by_band", "coverage_failures", "coverage_failures_capability_only", "coverage_failure_note", "unassigned"],
       "properties": {
         "total": {"type": "integer", "minimum": 0, "description": "The denominator for every count below."},
         "by_finding_class": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
         "by_band": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
         "coverage_failures": {"type": "integer", "minimum": 0, "description": "Assets that could not be classified (I8). Never counted as safe."},
+        "coverage_failures_capability_only": {"type": "integer", "minimum": 0, "description": "The subset of coverage_failures whose only evidence is dependency-level capability, not observed usage."},
         "coverage_failure_note": {"type": "string"},
         "unassigned": {"type": "integer", "minimum": 0}
       }
@@ -68,7 +69,7 @@
     "entry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["bom_ref", "system_id", "finding_class", "migration_authority", "authority_basis", "band", "outcome", "reason", "disputed", "mosca", "expected_value", "z_effective", "recommendation", "roadmap", "explanations"],
+      "required": ["bom_ref", "system_id", "finding_class", "migration_authority", "authority_basis", "band", "outcome", "reason", "disputed", "capability_only", "mosca", "expected_value", "z_effective", "recommendation", "roadmap", "explanations"],
       "properties": {
         "bom_ref": {"type": "string", "minLength": 1, "description": "The bom-ref of the CBOM component this entry is about."},
         "system_id": {"type": ["string", "null"], "description": "null = unassigned: visible, never dropped."},
@@ -79,6 +80,7 @@
         "outcome": {"enum": ["migrate", "compensating-control", "accept", "phase-out", null], "description": "null = no outcome issued (inventory-only, triage, or coverage gap); `reason` says which."},
         "reason": {"type": "string", "minLength": 1, "description": "Human-readable reason; present for every entry."},
         "disputed": {"type": "boolean"},
+        "capability_only": {"type": "boolean", "description": "true when the strongest evidence is DEPENDENCY tier or weaker: the asset is a capability (a library that can do this), not observed usage."},
         "mosca": {
           "oneOf": [
             {"type": "null"},

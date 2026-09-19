@@ -110,6 +110,8 @@ def bom_ref(identity: AssetIdentity) -> str:
 
 
 def _primitive(asset: CryptoAsset) -> str:
+    if asset.function is None:
+        return "unknown"
     if asset.function is CryptoFunction.ENCRYPTION:
         family = asset.algorithm_family
         if family.startswith("RSAES"):
@@ -163,7 +165,7 @@ def _component(asset: CryptoAsset, known_families: frozenset[str] | None) -> dic
     if asset.asset_type is AssetType.ALGORITHM:
         props: dict[str, Any] = {
             "primitive": _primitive(asset),
-            "cryptoFunctions": _CRYPTO_FUNCTIONS[asset.function],
+            "cryptoFunctions": _CRYPTO_FUNCTIONS[asset.function] if asset.function else ["unknown"],
         }
         if known_families is None or asset.algorithm_family in known_families:
             props["algorithmFamily"] = asset.algorithm_family

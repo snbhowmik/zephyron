@@ -226,7 +226,7 @@ console commands.
 
 | | ID | Task | Blocked by |
 |---|---|---|---|
-| ☐ | T-120 ★ | `make demo` — seeded dataset that exercises every step of `PRD.md §7`, including the planted AES-128, the planted MD5, the root-CA-vs-TLS-cert pair, and the deliberate DAG cycle. | Phase 9 |
+| ☐ | T-120 ★ | **First cut exists** (`make demo`: real recorded scanner output through every layer, schema-validated; the planted AES-128, MD5 and DAG cycle are present, the root-CA-vs-TLS-cert pair and the UI are not). `make demo` — seeded dataset that exercises every step of `PRD.md §7`, including the planted AES-128, the planted MD5, the root-CA-vs-TLS-cert pair, and the deliberate DAG cycle. | Phase 9 |
 | ☐ | T-121 | **Ground-truth accuracy run** (OQ-05): 3–5 well-known OSS repos, hand-labelled, measured precision/recall published in `docs/ACCURACY.md`. **Make no accuracy claim anywhere until this exists.** | T-120 |
 | ☐ | T-122 | Threat-model review against `SECURITY.md`; verify the sandbox actually blocks egress and privilege escalation with a deliberate escape test. | T-031 |
 | ☐ | T-123 | `make bundle` — air-gap offline tarball of pinned images plus the knowledge base. | T-006 |

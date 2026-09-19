@@ -75,12 +75,21 @@ def asset_identity(claim: IdentityClaim) -> AssetIdentity:
 
     # ALGORITHM and PROTOCOL are classes, not instances (ARCH.md §6.1): the
     # same algorithm in ten files is one asset with ten occurrences.
+    # OQ-18 (NOTE.md, T-024): ARCH.md §6.1 also hashes `primitive` and `oid`. On
+    # real recorded scanner output that fragmented one algorithm into several
+    # assets, because the tools disagree on both: cdxgen labels SHA-1 with a
+    # Novell OID (2.16.840.1.113719.1.2.8.82, not 1.3.14.3.2.26) and MD5 with
+    # the right one, while Opengrep supplies no OID at all; cdxgen omits the
+    # primitive where cbomkit and Opengrep give one. Identity is now built from
+    # the RESOLVED core only — family, parameter set, curve. An OID is
+    # *evidence* for resolving the family (`normalize.resolve`), not part of
+    # identity once the family is known; a primitive is fixed by the family
+    # here and by the asset's `function` elsewhere. Deliberate deviation from
+    # ARCH.md §6.1; the fields stay on IdentityClaim so callers need not change.
     canonical = {
         "family": claim.algorithm_family,
         "params": claim.parameter_set,
         "curve": claim.curve,  # canonicalised upstream — resolve_curve (T-012/T-015c)
-        "primitive": claim.primitive,
-        "oid": claim.oid,
     }
     digest = hashlib.sha256(_canonical_json(canonical).encode()).hexdigest()
     return AssetIdentity(kind=IdentityKind.ALGO, key=digest)
