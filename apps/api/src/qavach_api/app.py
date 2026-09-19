@@ -7,13 +7,13 @@ and export all live in `packages/core`; this file decides none of it.
 
 Notes on what is and is not here (also in `NOTE.md`):
 
-* **There is no authentication yet.** The API must be bound to localhost or sit
-  behind an authenticating proxy until it exists; do not expose it.
+* Authentication is optional (`QAVACH_API_TOKEN`, `qavach_api.auth`); without it
+  the API must be bound to localhost or sit behind an authenticating proxy.
 * Scans run through an injected `ScanRunner`. The default runs the pipeline on a
   thread pool (fine for one host); production wraps the same `run_scan` in RQ.
-* `GET .../export/report.pdf` answers 501 because the PDF report (T-094) is not
-  built - an honest "not implemented", not an empty file.
-* Agent enrollment/spec/results endpoints (T-073a) are a separate task.
+* `GET .../export/report.pdf` and `.../register.xlsx` render the stored register
+  (T-094, T-095); they add no analysis of their own.
+* Agent enrolment/spec/results endpoints live in `agent_routes` (T-073a).
 """
 
 from __future__ import annotations
@@ -51,6 +51,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from qavach_api.agent_ca import AgentCA
 from qavach_api.agent_routes import ReplayGuard, register_agent_routes
 from qavach_api.auth import websocket_subprotocol
+from qavach_api.reports import build_pdf, build_xlsx
 
 API_PREFIX = "/api/v1"
 
@@ -403,9 +404,8 @@ def create_app(state: AppState) -> FastAPI:
             cbom, _losses = downgrade_to_1_6(cbom)
         return JSONResponse(cbom, media_type="application/vnd.cyclonedx+json")
 
-    @app.get(f"{API_PREFIX}/scans/{{scan_id}}/export/risk-register")
-    def export_register(
-        scan_id: str, st: StateDep, repo: RepoDep, scope: str = "root", system_id: str | None = None
+    def register_doc(
+        st: AppState, repo: Repository, scan_id: str, scope: str, system_id: str | None
     ) -> dict[str, Any]:
         scan = scan_or_404(repo, scan_id)
         assets, sid = scoped_assets(repo, scan_id, scope, system_id)
@@ -431,6 +431,36 @@ def create_app(state: AppState) -> FastAPI:
             z_scenario=scan.z_scenario,
             as_of=date.fromisoformat(scan.as_of),
             generated_at=scan.started,
+        )
+
+    @app.get(f"{API_PREFIX}/scans/{{scan_id}}/export/risk-register")
+    def export_register(
+        scan_id: str, st: StateDep, repo: RepoDep, scope: str = "root", system_id: str | None = None
+    ) -> dict[str, Any]:
+        return register_doc(st, repo, scan_id, scope, system_id)
+
+    def rendered(
+        st: AppState, repo: Repository, scan_id: str, scope: str, system_id: str | None
+    ) -> tuple[dict[str, Any], dict[str, str], dict[str, Any]]:
+        """The register plus what a *rendering* of it needs: readable algorithm
+        names and the scan header. No analysis is added here."""
+        register = register_doc(st, repo, scan_id, scope, system_id)
+        scan = scan_or_404(repo, scan_id)
+        labels = {}
+        for a in repo.load_assets(scan_id):
+            detail = a.curve or a.parameter_set
+            labels[bom_ref(a.identity)] = a.algorithm_family + (f"-{detail}" if detail else "")
+        return register, labels, {"id": scan.id, "target_ref": scan.target_ref}
+
+    @app.get(f"{API_PREFIX}/scans/{{scan_id}}/export/register.xlsx")
+    def export_xlsx(
+        scan_id: str, st: StateDep, repo: RepoDep, scope: str = "root", system_id: str | None = None
+    ) -> Response:
+        register, labels, scan = rendered(st, repo, scan_id, scope, system_id)
+        return Response(
+            build_xlsx(register, labels, scan),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"content-disposition": f'attachment; filename="{scan_id}.register.xlsx"'},
         )
 
     @app.get(f"{API_PREFIX}/scans/{{before_id}}/diff/{{after_id}}")
@@ -520,9 +550,15 @@ def create_app(state: AppState) -> FastAPI:
         return {"fail": failed, "fail_on": tokens, "reasons": reasons}
 
     @app.get(f"{API_PREFIX}/scans/{{scan_id}}/export/report.pdf")
-    def export_pdf(scan_id: str, repo: RepoDep) -> Response:
-        scan_or_404(repo, scan_id)
-        raise HTTPException(501, "the executive PDF report (T-094) is not implemented")
+    def export_pdf(
+        scan_id: str, st: StateDep, repo: RepoDep, scope: str = "root", system_id: str | None = None
+    ) -> Response:
+        register, labels, scan = rendered(st, repo, scan_id, scope, system_id)
+        return Response(
+            build_pdf(register, labels, scan),
+            media_type="application/pdf",
+            headers={"content-disposition": f'attachment; filename="{scan_id}.report.pdf"'},
+        )
 
     # ---- systems & policy -------------------------------------------------
 

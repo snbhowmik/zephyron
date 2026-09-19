@@ -242,10 +242,59 @@ def test_a_later_as_of_date_worsens_bands_and_the_diff_says_the_date_moved(
     assert client.get(f"/api/v1/scans/{now}/diff/nope").status_code == 404
 
 
-def test_the_pdf_report_is_an_honest_501_not_an_empty_file(client: TestClient) -> None:
+def test_the_pdf_is_a_real_deterministic_rendering_of_the_register(client: TestClient) -> None:
     sid = _scan(client)
-    r = client.get(f"/api/v1/scans/{sid}/export/report.pdf")
-    assert r.status_code == 501 and "T-094" in r.json()["detail"]
+    first = client.get(f"/api/v1/scans/{sid}/export/report.pdf")
+    assert first.status_code == 200 and first.headers["content-type"] == "application/pdf"
+    assert first.content.startswith(b"%PDF-") and len(first.content) > 2000
+    # same scan, same bytes: nothing wall-clock-dependent is written
+    assert client.get(f"/api/v1/scans/{sid}/export/report.pdf").content == first.content
+    assert client.get("/api/v1/scans/nope/export/report.pdf").status_code == 404
+
+
+def test_the_xlsx_register_carries_every_entry_and_never_colours_unknown_as_safe(
+    client: TestClient,
+) -> None:
+    import io
+
+    from openpyxl import load_workbook
+
+    sid = _scan(client)
+    r = client.get(f"/api/v1/scans/{sid}/export/register.xlsx")
+    assert r.status_code == 200 and "spreadsheetml" in r.headers["content-type"]
+    wb = load_workbook(io.BytesIO(r.content))
+    assert wb.sheetnames == ["Summary", "Assets", "Roadmap"]
+    register = client.get(f"/api/v1/scans/{sid}/export/risk-register").json()
+    rows = list(wb["Assets"].iter_rows(min_row=2, values_only=True))
+    assert len(rows) == len(register["entries"])
+    assert {row[-1] for row in rows} == {e["bom_ref"] for e in register["entries"]}
+    unknown_fills = {
+        (c.fill.patternType, c.fill.fgColor.rgb)
+        for row in wb["Assets"].iter_rows(min_row=2)
+        for c in [row[2]]
+        if str(c.value).startswith("Unclassified")
+    }
+    assert unknown_fills and all(p == "lightUp" for p, _ in unknown_fills)  # hatched, not solid
+    summary = "\n".join(str(c.value) for row in wb["Summary"].iter_rows() for c in row if c.value)
+    assert "coverage failure" in summary.lower() and "nominal" in summary
+
+
+def test_act_now_never_includes_grover_or_unclassified_entries_whatever_their_band() -> None:
+    from qavach_api.reports import act_now
+
+    def entry(ref: str, cls: str, band: str) -> dict[str, str]:
+        return {"bom_ref": ref, "finding_class": cls, "band": band}
+
+    entries = [
+        entry("grover", "grover-affected", "overdue"),
+        entry("unknown", "unknown", "overdue"),
+        entry("safe", "quantum-safe", "overdue"),
+        entry("imminent-qv", "quantum-vulnerable", "imminent"),
+        entry("cw", "classical-weak", "not-applicable"),  # broken today, Mosca band is moot
+        entry("overdue-qv", "quantum-vulnerable", "overdue"),
+        entry("planned-qv", "quantum-vulnerable", "planned"),
+    ]
+    assert [e["bom_ref"] for e in act_now(entries)] == ["cw", "overdue-qv", "imminent-qv"]
 
 
 def test_systems_import_reports_every_problem_and_imports_the_good_rows(client: TestClient) -> None:

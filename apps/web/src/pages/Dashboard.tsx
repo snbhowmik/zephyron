@@ -8,7 +8,6 @@ import {
   Loading,
   Pill,
   Stat,
-  StubNotice,
 } from "@/components/ui";
 import { useScanId } from "@/hooks";
 import { FINDING_CLASSES, styleFor } from "@/lib/findingClass";
@@ -222,11 +221,20 @@ export function Dashboard() {
           >
             SARIF 2.1.0 (CI)
           </button>
-        </div>
-        <div className="mt-3">
-          <StubNotice title="Executive PDF report" task="T-094">
-            Not built. The API answers 501 rather than serving an empty file.
-          </StubNotice>
+          <button
+            type="button"
+            className="rounded-md bg-slate-800 px-3 py-1.5 ring-1 ring-slate-700 hover:bg-slate-700"
+            onClick={() => void downloadExport(scanId, "report.pdf")}
+          >
+            Executive report (PDF)
+          </button>
+          <button
+            type="button"
+            className="rounded-md bg-slate-800 px-3 py-1.5 ring-1 ring-slate-700 hover:bg-slate-700"
+            onClick={() => void downloadExport(scanId, "register.xlsx")}
+          >
+            Asset register (XLSX)
+          </button>
         </div>
       </Card>
     </div>

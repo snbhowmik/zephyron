@@ -192,8 +192,8 @@ at least one hybrid-bridge cycle in the demo dataset.
 | ☒ | T-091 ★ | `make schema-check`, wired into CI: validate against the official schema **and** assert no `qavach:` risk fields appear outside the documented namespace. Invariant I5. | T-090, T-003 |
 | ☒ | T-092 ★ | Crypto Risk Register export + JSON Schema at `docs/schema/risk-register-1.0.json`. | T-067, T-090 |
 | ☒ | T-093 | CycloneDX 1.6 downgrade export. | T-090 |
-| ☐ | T-094 | **Not started (needs a PDF library dependency; on the cut list).** Executive PDF. | T-092 |
-| ☐ | T-095 | **Not started (needs an XLSX library dependency; first on the cut list).** Asset register XLSX. | T-092 |
+| ☑ | T-094 | Executive PDF. | T-092 |
+| ☑ | T-095 | Asset register XLSX. | T-092 |
 | ☒ | T-096 | SARIF export + `qavach scan --fail-on <class>` CI mode. | T-090 |
 | ☒ | T-097 | Signed exports. ML-DSA-65 where the library allows; otherwise Ed25519 **with the limitation stated in the output**. | T-090 |
 | ☒ | T-098 | `docs/CUSTOM_PROPERTIES.md` documenting every `qavach:` property; CI fails on an undocumented namespace. | T-090 |
@@ -226,7 +226,7 @@ console commands.
 
 | | ID | Task | Blocked by |
 |---|---|---|---|
-| ☐ | T-120 ★ | **First cut exists** (`make demo`: real recorded scanner output through every layer, schema-validated; the planted AES-128, MD5 and DAG cycle are present, the root-CA-vs-TLS-cert pair and the UI are not). `make demo` — seeded dataset that exercises every step of `PRD.md §7`, including the planted AES-128, the planted MD5, the root-CA-vs-TLS-cert pair, and the deliberate DAG cycle. | Phase 9 |
+| ☐ | T-120 ★ | **First cut exists** (`make demo`: real recorded scanner output through every layer, schema-validated; the planted AES-128, MD5 and DAG cycle are present, the root-CA-vs-TLS-cert pair is not — blocked on OQ-20, the assembler cannot build certificate assets; the UI now exists). `make demo` — seeded dataset that exercises every step of `PRD.md §7`, including the planted AES-128, the planted MD5, the root-CA-vs-TLS-cert pair, and the deliberate DAG cycle. | Phase 9 |
 | ☐ | T-121 | **Ground-truth accuracy run** (OQ-05): 3–5 well-known OSS repos, hand-labelled, measured precision/recall published in `docs/ACCURACY.md`. **Make no accuracy claim anywhere until this exists.** | T-120 |
 | ☐ | T-122 | Threat-model review against `SECURITY.md`; verify the sandbox actually blocks egress and privilege escalation with a deliberate escape test. | T-031 |
 | ☐ | T-123 | `make bundle` — air-gap offline tarball of pinned images plus the knowledge base. | T-006 |
