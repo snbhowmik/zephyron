@@ -270,3 +270,42 @@ export interface ProgressEvent {
   collector: string | null;
   detail: string | null;
 }
+
+export interface DiffRow {
+  bom_ref: string;
+  label: string;
+  system_id: string | null;
+  finding_class: string;
+  band: string;
+}
+
+export interface DiffChange {
+  bom_ref: string;
+  label: string;
+  system_id: string | null;
+  direction: "worsened" | "improved" | "coverage" | "changed";
+  fields: Record<string, [unknown, unknown]>;
+}
+
+export interface DiffSummary {
+  added: number;
+  removed: number;
+  changed: number;
+  unchanged: number;
+  added_risky: number;
+  added_coverage_failures: number;
+  removed_risky: number;
+  worsened: number;
+  improved: number;
+  coverage_changes: number;
+}
+
+export interface ScanDiff {
+  before: string;
+  after: string;
+  summary: DiffSummary;
+  added: DiffRow[];
+  removed: DiffRow[];
+  changed: DiffChange[];
+  caveats: string[];
+}

@@ -217,7 +217,7 @@ console commands.
 | ☑ | T-106 ★ | Roadmap view: Cytoscape.js + dagre DAG, waves as a timeline, hybrid-bridge cycles highlighted distinctly. | T-085, T-086 |
 | ☑ | T-107 ★ | Finding-class visual language: `GROVER_AFFECTED` must **never** render in the same colour or severity band as `QUANTUM_VULNERABLE`. `CLASSICAL_WEAK` gets its own treatment with "urgent — but not a quantum issue" copy. Invariant I1, in the design system. | T-102 |
 | ☑ | T-108 | Triage UI: suppress with reason and expiry; adjudicate disputes. | T-076, T-025 |
-| ☐ | T-109 | Scan history and drift diff. | T-103 |
+| ☑ | T-109 | Scan history and drift diff. | T-103 |
 | ☑ | T-110 ★ | Unimplemented capabilities render as visible, labelled stubs. Never hidden, never fake data presented as real. | T-100 |
 
 ---

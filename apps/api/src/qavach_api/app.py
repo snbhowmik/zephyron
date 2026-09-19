@@ -35,11 +35,13 @@ from qavach_collectors import Target, TargetType
 from qavach_core.context import parse_system_rows, parse_systems_csv
 from qavach_core.export import (
     assemble_register,
+    bom_ref,
     build_cbom,
     build_sarif_from_entries,
     downgrade_to_1_6,
     evaluate_fail_on_entries,
 )
+from qavach_core.pipeline import diff_entries
 from qavach_core.policy import PolicyError
 from qavach_storage import AssetFilter, Repository, models
 from qavach_worker import Deps, ProgressEvent, ScanRequest, run_scan, simulate
@@ -424,6 +426,71 @@ def create_app(state: AppState) -> FastAPI:
             as_of=date.fromisoformat(scan.as_of),
             generated_at=scan.started,
         )
+
+    @app.get(f"{API_PREFIX}/scans/{{before_id}}/diff/{{after_id}}")
+    def scan_diff(before_id: str, after_id: str, repo: RepoDep) -> dict[str, Any]:
+        """What changed between two scans (T-109). Also says *why the comparison
+        may mislead* - a different policy, date, Z scenario or collector set moves
+        scores and coverage without the estate changing - rather than presenting a
+        raw diff as drift."""
+        before, after = scan_or_404(repo, before_id), scan_or_404(repo, after_id)
+
+        def labels(scan_id: str) -> dict[str, str]:
+            out = {}
+            for a in repo.load_assets(scan_id):
+                detail = a.curve or a.parameter_set
+                out[bom_ref(a.identity)] = a.algorithm_family + (f"-{detail}" if detail else "")
+            return out
+
+        names = labels(before_id) | labels(after_id)
+
+        def ran(scan_id: str) -> dict[str, bool]:
+            return {c.collector: not c.partial for c in repo.collector_runs(scan_id)}
+
+        ran_before, ran_after = ran(before_id), ran(after_id)
+        drift = diff_entries(repo.score_entries(before_id), repo.score_entries(after_id))
+
+        def row(e: Any) -> dict[str, Any]:
+            return {
+                "bom_ref": e["bom_ref"],
+                "label": names.get(e["bom_ref"], e["bom_ref"]),
+                "system_id": e.get("system_id"),
+                "finding_class": e["finding_class"],
+                "band": e["band"],
+            }
+
+        caveats = []
+        if before.policy_snapshot_id != after.policy_snapshot_id:
+            caveats.append(
+                "the policy snapshot differs: score changes may be policy, not the estate"
+            )
+        if before.z_scenario != after.z_scenario:
+            caveats.append("the Z scenario differs")
+        if before.as_of != after.as_of:
+            caveats.append("the as-of date differs: bands move as deadlines approach")
+        if ran_before != ran_after:
+            caveats.append(
+                "the collector set (or which collectors completed) differs: assets can "
+                "appear or vanish because of coverage, not because the estate changed"
+            )
+        return {
+            "before": before_id,
+            "after": after_id,
+            "summary": drift.summary(),
+            "added": [row(e) for e in drift.added],
+            "removed": [row(e) for e in drift.removed],
+            "changed": [
+                {
+                    "bom_ref": c.bom_ref,
+                    "label": names.get(c.bom_ref, c.bom_ref),
+                    "system_id": c.system_id or None,
+                    "direction": c.direction,
+                    "fields": {k: list(v) for k, v in c.fields.items()},
+                }
+                for c in drift.changed
+            ],
+            "caveats": caveats,
+        }
 
     @app.get(f"{API_PREFIX}/scans/{{scan_id}}/export/sarif")
     def export_sarif(scan_id: str, repo: RepoDep) -> dict[str, Any]:

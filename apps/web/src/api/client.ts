@@ -6,6 +6,7 @@ import type {
   RiskRegister,
   RoadmapResponse,
   ScanDetail,
+  ScanDiff,
   ScanListItem,
   SimulateResult,
 } from "./types";
@@ -95,6 +96,8 @@ export const api = {
   meta: () => request<Meta>("/api/v1/meta"),
   scans: () => request<ScanListItem[]>("/api/v1/scans"),
   scan: (id: string) => request<ScanDetail>(`/api/v1/scans/${id}`),
+  diff: (before: string, after: string) =>
+    request<ScanDiff>(`/api/v1/scans/${before}/diff/${after}`),
   assets: (id: string, query: AssetQuery) =>
     request<AssetPage>(`/api/v1/scans/${id}/assets${queryString({ ...query })}`),
   asset: (id: string) => request<AssetDetail>(`/api/v1/assets/${id}`),

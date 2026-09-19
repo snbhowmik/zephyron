@@ -220,6 +220,28 @@ def test_sarif_is_served_from_stored_entries_and_gates_by_class(client: TestClie
     assert client.get("/api/v1/scans/nope/export/sarif").status_code == 404
 
 
+def test_diffing_a_scan_against_itself_shows_no_drift_and_no_caveats(client: TestClient) -> None:
+    first, second = _scan(client), _scan(client)
+    body = client.get(f"/api/v1/scans/{first}/diff/{second}").json()
+    s = body["summary"]
+    assert s["added"] == s["removed"] == s["changed"] == 0 and s["unchanged"] > 0
+    assert body["caveats"] == []
+
+
+def test_a_later_as_of_date_worsens_bands_and_the_diff_says_the_date_moved(
+    client: TestClient,
+) -> None:
+    """Bands move as deadlines approach with no change to the estate - the diff
+    must attribute that to the date rather than present it as drift."""
+    now, later = _scan(client), _scan(client, as_of="2030-01-01")
+    body = client.get(f"/api/v1/scans/{now}/diff/{later}").json()
+    assert body["summary"]["added"] == body["summary"]["removed"] == 0
+    assert body["summary"]["worsened"] > 0
+    assert any("as-of" in c for c in body["caveats"])
+    assert all(c["label"] and c["direction"] for c in body["changed"])
+    assert client.get(f"/api/v1/scans/{now}/diff/nope").status_code == 404
+
+
 def test_the_pdf_report_is_an_honest_501_not_an_empty_file(client: TestClient) -> None:
     sid = _scan(client)
     r = client.get(f"/api/v1/scans/{sid}/export/report.pdf")

@@ -13,15 +13,3 @@ export function Agents() {
     </div>
   );
 }
-
-export function History() {
-  return (
-    <div className="mx-auto max-w-3xl space-y-4">
-      <h1 className="text-xl font-semibold">Scan history</h1>
-      <StubNotice title="Scan history and drift diff" task="T-109">
-        Not built. Scans are persisted and listed in the scan selector; comparing two scans to show
-        what changed is not implemented.
-      </StubNotice>
-    </div>
-  );
-}
