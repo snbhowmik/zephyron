@@ -1,0 +1,92 @@
+# T-060 / ARCH.md 7.3. Regulatory dates that can pull Z_effective earlier than
+# any CRQC scenario. Every node: `date`, `scope`, `kind`, `binding`, `basis`.
+#
+#   kind     migration  a date by which cryptography must have MOVED. Only
+#                       these bind Z_effective.
+#            inventory  a date by which the estate must be INVENTORIED. It is
+#                       reported, but a discovery deadline says nothing about
+#                       when a quantum computer can break your keys, so it
+#                       never binds Mosca's Z. (ARCH.md 7.3's sample omits
+#                       this field; without it the 2027 "foundations" date
+#                       would become Z for every CII asset. See NOTE.md.)
+#   binding  true = enforced by a regulator; false = advisory. The UI must
+#            distinguish them (ARCH.md 7.3).
+#   scope    regime tags matched against System.regulatory_regimes. `cii` and
+#            `enterprise` are the DST/NQM TRACK - a stated property of the
+#            organisation, never inferred (ARCH.md 7.3, A-1).
+#   milestone  (DST only) which milestone this is; a system selects the one
+#            its priority implies (scoring.yaml: dst.high_priority_min_criticality).
+#
+# The dates are copied from ARCH.md 7.3, which cites DST/NQM "Quantum-Safe
+# Ecosystem in India: Roadmap to Quantum Resiliency" (May 2026) sections 7 and
+# 9, SEBI CSCRF, NIST IR 8547 (ipd) and NSA CNSA 2.0. NONE of them was
+# re-verified against the primary document in this repo (CLAUDE.md 8 asks for
+# that; it is recorded as open in NOTE.md).
+
+deadlines:
+  in_dst_cii_m1_foundations:
+    date: 2027-12-31
+    scope: [cii]
+    kind: inventory
+    milestone: foundations
+    binding: false
+    basis: "DST/NQM May 2026, Milestone 1 - inventory, governance, pilots (CII track)"
+  in_dst_cii_m2_highpriority:
+    date: 2028-12-31
+    scope: [cii]
+    kind: migration
+    milestone: high_priority
+    binding: false
+    basis: "DST/NQM May 2026, Milestone 2 (CII track); roadmap is advisory, enforcement sits with sector regulators"
+  in_dst_cii_m3_full:
+    date: 2029-12-31
+    scope: [cii]
+    kind: migration
+    milestone: full
+    binding: false
+    basis: "DST/NQM May 2026, Milestone 3 (CII track)"
+  in_dst_ent_m1_foundations:
+    date: 2028-12-31
+    scope: [enterprise]
+    kind: inventory
+    milestone: foundations
+    binding: false
+    basis: "DST/NQM May 2026, Milestone 1 (enterprise track)"
+  in_dst_ent_m2_highpriority:
+    date: 2030-12-31
+    scope: [enterprise]
+    kind: migration
+    milestone: high_priority
+    binding: false
+    basis: "DST/NQM May 2026, Milestone 2 (enterprise track)"
+  in_dst_ent_m3_full:
+    date: 2033-12-31
+    scope: [enterprise]
+    kind: migration
+    milestone: full
+    binding: false
+    basis: "DST/NQM May 2026, Milestone 3 (enterprise track)"
+  in_sebi_cscrf_inventory:
+    date: 2025-08-31
+    scope: [sebi-re]
+    kind: inventory
+    binding: true
+    basis: "SEBI CSCRF + June 2025 FAQ - crypto asset inventory; the date has passed"
+  nist_ir8547_deprecated:
+    date: 2030-12-31
+    scope: [us-federal]
+    kind: migration
+    binding: false
+    basis: "NIST IR 8547 ipd (Nov 2024), still a draft as of mid-2026"
+  nist_ir8547_disallowed:
+    date: 2035-12-31
+    scope: [us-federal]
+    kind: migration
+    binding: false
+    basis: "NIST IR 8547 ipd (Nov 2024), still a draft as of mid-2026"
+  cnsa2_acquisition_gate:
+    date: 2027-01-01
+    scope: [nss]
+    kind: migration
+    binding: true
+    basis: "NSA CNSA 2.0 acquisition gate for National Security Systems"

@@ -1,0 +1,48 @@
+# T-061..T-066 tunables. Every node has a `basis`; nothing here is a measured
+# fact. Values marked HEURISTIC are QAVACH planning defaults, uncalibrated
+# (NOTE.md OQ-02), and the UI must label anything derived from them as such.
+
+mosca:
+  ephemeral_artefact_max_years:
+    value: 1.0
+    basis: "HEURISTIC: an artefact trusted for at most this long is ephemeral (X_integ = 0). ARCH.md 7.2 names a 90-day TLS certificate as the example; the cut-off itself is QAVACH's"
+  imminent_within_years:
+    value: 2.0
+    basis: "HEURISTIC: a quantum-vulnerable asset whose X + Y is within this many years of Z_effective is 'imminent' rather than 'planned'"
+
+dst:
+  high_priority_min_criticality:
+    value: 4
+    basis: "HEURISTIC: ARCH.md 7.3 makes milestone selection a business-context input; QAVACH derives 'high priority' from System.criticality >= this until the operator supplies it explicitly"
+
+caraf:
+  exposure_internet_facing:
+    value: 1.5
+    basis: "ARCH.md 7.5 D3 exposure factor: internet-facing 1.5"
+  exposure_partner:
+    value: 1.2
+    basis: "ARCH.md 7.5 D3 exposure factor: partner 1.2 (System has no partner flag yet, so this is not selected automatically)"
+  exposure_internal:
+    value: 1.0
+    basis: "ARCH.md 7.5 D3 exposure factor: internal 1.0"
+  sensitivity_public:
+    value: 1
+    basis: "HEURISTIC 1..5 mapping of DataClass (MODEL-02 taxonomy is itself provisional)"
+  sensitivity_internal:
+    value: 2
+    basis: "HEURISTIC 1..5 mapping of DataClass"
+  sensitivity_confidential:
+    value: 4
+    basis: "HEURISTIC 1..5 mapping of DataClass"
+  sensitivity_restricted:
+    value: 5
+    basis: "HEURISTIC 1..5 mapping of DataClass"
+  gap_factor_scale_years:
+    value: 10.0
+    basis: "HEURISTIC: mosca_gap_factor = clamp(1 + gap_years / scale, min, max); ARCH.md 7.5 specifies 'f(X + Y - Z_effective), clamped' without giving f"
+  gap_factor_min:
+    value: 0.5
+    basis: "HEURISTIC clamp floor: comfortably early still carries some risk"
+  gap_factor_max:
+    value: 2.0
+    basis: "HEURISTIC clamp ceiling: keeps one extreme gap from dominating the ranking"

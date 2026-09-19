@@ -1,0 +1,27 @@
+# T-060 / ARCH.md 7.3. Z - when a cryptographically relevant quantum computer
+# (CRQC) arrives - is UNKNOWABLE. It is a policy input, never a fact
+# (invariant I3): three cited scenarios, and every number QAVACH prints that
+# depends on Z states which one produced it.
+#
+# Every node carries a `basis`. The policy loader rejects any uncited value.
+# The three years and their bases are copied from ARCH.md 7.3; they are
+# scenario framings, not measurements, and have NOT been re-derived from the
+# underlying literature in this repo (see `verification`).
+
+scenarios:
+  aggressive:
+    crqc_year: 2030
+    basis: "vendor logical-qubit roadmaps; upper-bound planning"
+    verification: "copied from ARCH.md 7.3; primary sources not re-checked"
+  nominal:
+    crqc_year: 2033
+    basis: "median of published expert elicitation"
+    verification: "copied from ARCH.md 7.3; primary sources not re-checked"
+  conservative:
+    crqc_year: 2038
+    basis: "error-correction overhead scepticism"
+    verification: "copied from ARCH.md 7.3; primary sources not re-checked"
+
+default:
+  value: nominal
+  basis: "ARCH.md 7.3 ships 'nominal' as the default scenario; the operator may change it"

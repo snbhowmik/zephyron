@@ -115,10 +115,10 @@ system carries criticality, retention and exposure.
 
 | | ID | Task | Blocked by |
 |---|---|---|---|
-| ☐ | T-050 ★ | `System` model + CSV/YAML import with validation and a clear error report. | T-010 |
-| ☐ | T-051 ★ | Asset → system binding: by repo, by image, by endpoint, by cloud account. Unbound assets go to a visible "unassigned" bucket, never dropped. | T-050, T-022 |
-| ☐ | T-052 | Retention inference from data classification when unsupplied; mark `retention_inferred=True` and surface the inference in the UI. | T-050 |
-| ☐ | T-053 | System dependency import (`system_deps`) — feeds the roadmap DAG. | T-050 |
+| ☒ | T-050 ★ | `System` model + CSV/YAML import with validation and a clear error report. | T-010 |
+| ☒ | T-051 ★ | Asset → system binding: by repo, by image, by endpoint, by cloud account. Unbound assets go to a visible "unassigned" bucket, never dropped. | T-050, T-022 |
+| ☒ | T-052 | Retention inference from data classification when unsupplied; mark `retention_inferred=True` and surface the inference in the UI. | T-050 |
+| ☒ | T-053 | System dependency import (`system_deps`) — feeds the roadmap DAG. | T-050 |
 
 ---
 
@@ -130,15 +130,15 @@ via the explain API. **Total runtime under 60s for 50k assets (NFR-02).**
 
 | | ID | Task | Blocked by |
 |---|---|---|---|
-| ☐ | T-060 ★ | `config/policy/z_scenarios.yaml` + `regulatory_deadlines.yaml`, every entry with a `basis` citation and a `binding: true|false` flag. | — |
-| ☐ | T-061 ★ | `shelf_life_years()` per `ARCH.md §7.2`. **Property test: for identical algorithm and key size, a long-lived signing asset always outranks an ephemeral one.** This is the invariant-I2 guard. | T-016, T-050 |
-| ☐ | T-062 ★ | `Z_effective = min(Z_scenario, applicable_regulatory_deadlines)`, returning which one bound and why. | T-060 |
-| ☐ | T-063 ★ | `Y` estimator from `config/policy/migration_effort.yaml`. Labelled a planning heuristic in every surface it appears. | T-051 |
-| ☐ | T-064 ★ | Mosca evaluation: `X + Y > Z_effective`, gap in years, urgency band. | T-061, T-062, T-063 |
-| ☐ | T-065 ★ | CARAF D3 expected value: criticality × sensitivity × exposure × mosca gap factor. | T-064 |
-| ☐ | T-066 ★ | CARAF D4 outcome selection: Migrate / Compensating control / Accept / Phase out, against `risk_tolerance.yaml`. **Every outcome carries a human-readable reason string.** | T-065 |
-| ☐ | T-067 ★ | Explanation objects: every score serialises its inputs, its formula, the policy values used, and each value's citation. Powers FR-360 and the UI drill-down. | T-064, T-066 |
-| ☐ | T-068 ★ | Policy snapshotting into `scan_runs.policy_snapshot_json`. Scores are **always** computed against the snapshot, never against current policy. | T-060, T-070 |
+| ☒ | T-060 ★ | `config/policy/z_scenarios.yaml` + `regulatory_deadlines.yaml`, every entry with a `basis` citation and a `binding: true|false` flag. | — |
+| ☒ | T-061 ★ | `shelf_life_years()` per `ARCH.md §7.2`. **Property test: for identical algorithm and key size, a long-lived signing asset always outranks an ephemeral one.** This is the invariant-I2 guard. | T-016, T-050 |
+| ☒ | T-062 ★ | `Z_effective = min(Z_scenario, applicable_regulatory_deadlines)`, returning which one bound and why. | T-060 |
+| ☒ | T-063 ★ | `Y` estimator from `config/policy/migration_effort.yaml`. Labelled a planning heuristic in every surface it appears. | T-051 |
+| ☒ | T-064 ★ | Mosca evaluation: `X + Y > Z_effective`, gap in years, urgency band. | T-061, T-062, T-063 |
+| ☒ | T-065 ★ | CARAF D3 expected value: criticality × sensitivity × exposure × mosca gap factor. | T-064 |
+| ☒ | T-066 ★ | CARAF D4 outcome selection: Migrate / Compensating control / Accept / Phase out, against `risk_tolerance.yaml`. **Every outcome carries a human-readable reason string.** | T-065 |
+| ☒ | T-067 ★ | Explanation objects: every score serialises its inputs, its formula, the policy values used, and each value's citation. Powers FR-360 and the UI drill-down. | T-064, T-066 |
+| ☐ | T-068 ★ | **Core half done** (`PolicySnapshot`: frozen, canonical JSON, SHA-256 `snapshot_id`, scoring reads only it); **the `scan_runs.policy_snapshot_json` column waits on T-070.** Policy snapshotting into `scan_runs.policy_snapshot_json`. Scores are **always** computed against the snapshot, never against current policy. | T-060, T-070 |
 
 ---
 

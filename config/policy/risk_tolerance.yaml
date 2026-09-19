@@ -1,0 +1,17 @@
+# T-066 / ARCH.md 7.5 D4. The organisation's appetite, against which the four
+# outcomes (migrate / compensating control / accept / phase out) are chosen.
+# EV is CARAF D3's expected value of compromise, range ~0.5..75 with the
+# defaults in scoring.yaml. All values are operator-tunable HEURISTICS.
+
+accept_below_ev:
+  value: 10.0
+  basis: "HEURISTIC: below this expected value the risk is inside tolerance and the recommendation is to accept it"
+blocked_migration_min_y_years:
+  value: 5.0
+  basis: "HEURISTIC: an estimated migration time at or above this is treated as effectively blocked (hardware- or vendor-bound), which routes a high-EV asset to a compensating control"
+phase_out_max_criticality:
+  value: 2
+  basis: "HEURISTIC: only low-criticality systems are candidates for decommissioning instead of migration"
+phase_out_ev_per_year_of_effort:
+  value: 6.0
+  basis: "HEURISTIC: if EV is below this many EV-points per year of migration effort, migrating costs more than the asset is worth (ARCH.md 7.5 'Phase out')"

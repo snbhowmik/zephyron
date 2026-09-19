@@ -1,0 +1,68 @@
+# T-063 / ARCH.md 7.4. Y - migration time in YEARS - is ESTIMATED from a factor
+# model, not measured. Every multiplier is an operator-overridable default and
+# a planning heuristic; the UI must say so wherever Y appears (OQ-02: not
+# calibrated). The six DST/NQM technology factors (ARCH.md 7.4, A-10) map onto
+# these multipliers as noted in each basis.
+
+base_years:
+  source:
+    value: 0.25
+    basis: "HEURISTIC: a library or algorithm swap in source the operator owns"
+  dependency:
+    value: 0.25
+    basis: "HEURISTIC: bumping a dependency version"
+  container:
+    value: 0.5
+    basis: "HEURISTIC: rebuild and redeploy an image"
+  network:
+    value: 0.5
+    basis: "HEURISTIC: reconfigure and re-certify a TLS/SSH endpoint"
+  cloud:
+    value: 0.5
+    basis: "HEURISTIC: re-key or re-configure a cloud KMS/ACM resource"
+  file:
+    value: 0.25
+    basis: "HEURISTIC: replace a keystore or certificate file"
+  host:
+    value: 0.5
+    basis: "HEURISTIC: change a host-level configuration"
+  runtime:
+    value: 0.5
+    basis: "HEURISTIC: a runtime-observed provider swap"
+  hsm:
+    value: 1.0
+    basis: "HEURISTIC: an HSM-anchored change starts from procurement and firmware windows"
+
+multipliers:
+  pqc_library_available:
+    value: 1.0
+    basis: "ARCH.md 7.4: drop-in"
+  library_without_pqc:
+    value: 3.0
+    basis: "ARCH.md 7.4: wait on upstream - external blocker"
+  protocol_not_standardised:
+    value: 4.0
+    basis: "ARCH.md 7.4 / DST cross-border dependencies: wait on IETF"
+  hardware_bound:
+    value: 5.0
+    basis: "ARCH.md 7.4 / DST hardware constraints: firmware, procurement, possibly replacement"
+  third_party_saas:
+    value: 6.0
+    basis: "ARCH.md 7.4 / DST vendor dependence (MigrationAuthority.VENDOR): vendor management, contractual"
+  signature_size_sensitive:
+    value: 2.0
+    basis: "ARCH.md 7.4: ML-DSA signatures are much larger than ECDSA"
+  wire_format_change:
+    value: 2.5
+    basis: "ARCH.md 7.4: coordinated rollout"
+  high_occurrence_count:
+    value: 1.5
+    basis: "ARCH.md 7.4: occurrence count over the threshold means larger blast radius"
+  high_handshake_frequency:
+    value: 1.5
+    basis: "HEURISTIC (DST handshake-frequency factor, ARCH.md 7.4 A-10): frequent renegotiation or short-lived sessions amplify PQC cost; ARCH.md gives the factor but not its weight"
+
+thresholds:
+  high_occurrence_count_over:
+    value: 50
+    basis: "ARCH.md 7.4: 'Occurrence count > 50'"

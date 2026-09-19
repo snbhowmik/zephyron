@@ -1,0 +1,19 @@
+# T-052 / FR-252. Used ONLY when a system's retention_years was not supplied.
+# The result is always marked retention_inferred=True and surfaced as an
+# inference. These are QAVACH planning defaults keyed on the provisional
+# DataClass taxonomy (MODEL-02); they are NOT regulatory retention periods, and
+# no regulation-specific floor is applied because none was verified.
+
+years_by_data_class:
+  public:
+    value: 0
+    basis: "HEURISTIC: public data has no confidentiality lifetime to protect"
+  internal:
+    value: 3
+    basis: "HEURISTIC: typical short business-record horizon"
+  confidential:
+    value: 7
+    basis: "HEURISTIC: a common multi-year record-keeping horizon; NOT a regulatory figure"
+  restricted:
+    value: 10
+    basis: "HEURISTIC: long-lived sensitive data; NOT a regulatory figure"
