@@ -170,14 +170,14 @@ at least one hybrid-bridge cycle in the demo dataset.
 
 | | ID | Task | Blocked by |
 |---|---|---|---|
-| ☐ | T-080 ★ | `config/knowledge/pqc_alternatives.yaml`. Each entry: `status`, `standard`, `verified_on`, `source_url`. **FIPS 203/204/205 final; HQC selected-not-published; FIPS 206 in development.** | — |
-| ☐ | T-081 ★ | CI check: fail the build if any `verified_on` in the knowledge base is older than 180 days. Forces re-verification against NIST CSRC. | T-080, T-003 |
-| ☐ | T-082 ★ | Recommendation engine: select a replacement by function and constraints; emit hybrid guidance with context and reason. | T-080, T-066 |
-| ☐ | T-083 | `config/knowledge/performance.yaml` — key/ciphertext/signature sizes, timings, handshake overhead. **Every row cites a primary source. Unavailable figures are `null`, never invented.** | T-080 |
-| ☐ | T-084 ★ | Migration DAG builder with the six typed edges (`ARCH.md §9.1`). Include the reader-before-writer rule for data-format edges. | T-053, T-066 |
-| ☐ | T-085 ★ | Topological sort into waves; order within wave by Mosca urgency; backward-schedule quarters from the binding deadline. | T-084 |
-| ☐ | T-086 ★ | Cycle detection → `HybridBridgeRequirement` naming every SCC member, scheduled as its own wave. **A cycle is a finding, not an error.** | T-084 |
-| ☐ | T-087 | `SCHEDULE_INFEASIBLE` flag with the specific blocking chain named. | T-085 |
+| ☒ | T-080 ★ | `config/knowledge/pqc_alternatives.yaml`. Each entry: `status`, `standard`, `verified_on`, `source_url`. **FIPS 203/204/205 final; HQC selected-not-published; FIPS 206 in development.** | — |
+| ☒ | T-081 ★ | CI check: fail the build if any `verified_on` in the knowledge base is older than 180 days. Forces re-verification against NIST CSRC. | T-080, T-003 |
+| ☒ | T-082 ★ | Recommendation engine: select a replacement by function and constraints; emit hybrid guidance with context and reason. | T-080, T-066 |
+| ☒ | T-083 | `config/knowledge/performance.yaml` — key/ciphertext/signature sizes, timings, handshake overhead. **Every row cites a primary source. Unavailable figures are `null`, never invented.** | T-080 |
+| ☒ | T-084 ★ | Migration DAG builder with the six typed edges (`ARCH.md §9.1`). Include the reader-before-writer rule for data-format edges. | T-053, T-066 |
+| ☒ | T-085 ★ | Topological sort into waves; order within wave by Mosca urgency; backward-schedule quarters from the binding deadline. | T-084 |
+| ☒ | T-086 ★ | Cycle detection → `HybridBridgeRequirement` naming every SCC member, scheduled as its own wave. **A cycle is a finding, not an error.** | T-084 |
+| ☒ | T-087 | `SCHEDULE_INFEASIBLE` flag with the specific blocking chain named. | T-085 |
 
 ---
 

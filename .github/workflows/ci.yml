@@ -46,6 +46,9 @@ jobs:
       - name: Install JS workspace
         run: pnpm install --frozen-lockfile
 
+      - name: Knowledge base is fresh (T-081)
+        run: make knowledge-check
+
       - name: make lint
         run: make lint
 

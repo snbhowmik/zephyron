@@ -1,0 +1,187 @@
+# T-083 / ARCH.md 8.3 / FR-430. Sizes and overheads, each with a source.
+#
+# RULES: every figure cites a primary source; a figure that is not available
+# is `null` and the UI shows "not available" - it is never invented. Timings
+# (keygen / sign / verify / encaps / decaps) are ALL `null`: none has been
+# measured on a documented platform, and published numbers vary by CPU and
+# implementation. A future `bench` command (liboqs / OpenSSL speed) can fill
+# them with `measured_on` set.
+#
+# `basis`:  spec       a size fixed by the standard's parameter table
+#           measured   observed by generating real objects with OpenSSL 3.5.8
+#                      on 2026-09-20 (`measured_on` names the platform)
+#           derived    arithmetic on other rows in this file
+# Sizes are in BYTES. The PQC sizes were both read from the standard's tables
+# and reproduced by OpenSSL 3.5.8 (`openssl genpkey` / `pkeyutl -encap|-sign`);
+# they agree. `sk_bytes` for ML-KEM is the FIPS 203 decapsulation key `dk`.
+
+measured_on: "OpenSSL 3.5.8 (25 Aug 2026), Linux x86_64, 2026-09-20"
+
+kem:
+  ML-KEM-512:
+    standard: FIPS 203
+    source_url: https://csrc.nist.gov/pubs/fips/203/final
+    basis: measured
+    public_key_bytes: 800
+    secret_key_bytes: 1632
+    ciphertext_bytes: 768
+    shared_secret_bytes: 32
+    keygen_us: null
+    encaps_us: null
+    decaps_us: null
+  ML-KEM-768:
+    standard: FIPS 203
+    source_url: https://csrc.nist.gov/pubs/fips/203/final
+    basis: measured
+    public_key_bytes: 1184
+    secret_key_bytes: 2400
+    ciphertext_bytes: 1088
+    shared_secret_bytes: 32
+    keygen_us: null
+    encaps_us: null
+    decaps_us: null
+  ML-KEM-1024:
+    standard: FIPS 203
+    source_url: https://csrc.nist.gov/pubs/fips/203/final
+    basis: measured
+    public_key_bytes: 1568
+    secret_key_bytes: 3168
+    ciphertext_bytes: 1568
+    shared_secret_bytes: 32
+    keygen_us: null
+    encaps_us: null
+    decaps_us: null
+  X25519:
+    standard: RFC 7748
+    source_url: https://www.rfc-editor.org/rfc/rfc7748
+    basis: spec
+    public_key_bytes: 32
+    secret_key_bytes: 32
+    ciphertext_bytes: null
+    shared_secret_bytes: 32
+    keygen_us: null
+    encaps_us: null
+    decaps_us: null
+
+signature:
+  ML-DSA-44:
+    standard: FIPS 204
+    source_url: https://csrc.nist.gov/pubs/fips/204/final
+    basis: measured
+    public_key_bytes: 1312
+    signature_bytes: 2420
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  ML-DSA-65:
+    standard: FIPS 204
+    source_url: https://csrc.nist.gov/pubs/fips/204/final
+    basis: measured
+    public_key_bytes: 1952
+    signature_bytes: 3309
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  ML-DSA-87:
+    standard: FIPS 204
+    source_url: https://csrc.nist.gov/pubs/fips/204/final
+    basis: measured
+    public_key_bytes: 2592
+    signature_bytes: 4627
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  SLH-DSA-SHA2-128s:
+    standard: FIPS 205
+    source_url: https://csrc.nist.gov/pubs/fips/205/final
+    basis: measured
+    public_key_bytes: 32
+    signature_bytes: 7856
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  SLH-DSA-SHA2-128f:
+    standard: FIPS 205
+    source_url: https://csrc.nist.gov/pubs/fips/205/final
+    basis: measured
+    public_key_bytes: 32
+    signature_bytes: 17088
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  SLH-DSA-SHA2-192s:
+    standard: FIPS 205
+    source_url: https://csrc.nist.gov/pubs/fips/205/final
+    basis: measured
+    public_key_bytes: 48
+    signature_bytes: 16224
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  SLH-DSA-SHA2-192f:
+    standard: FIPS 205
+    source_url: https://csrc.nist.gov/pubs/fips/205/final
+    basis: measured
+    public_key_bytes: 48
+    signature_bytes: 35664
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  SLH-DSA-SHA2-256s:
+    standard: FIPS 205
+    source_url: https://csrc.nist.gov/pubs/fips/205/final
+    basis: measured
+    public_key_bytes: 64
+    signature_bytes: 29792
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  SLH-DSA-SHA2-256f:
+    standard: FIPS 205
+    source_url: https://csrc.nist.gov/pubs/fips/205/final
+    basis: measured
+    public_key_bytes: 64
+    signature_bytes: 49856
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  Ed25519:
+    standard: RFC 8032
+    source_url: https://www.rfc-editor.org/rfc/rfc8032
+    basis: spec
+    public_key_bytes: 32
+    signature_bytes: 64
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  ECDSA-P-256:
+    standard: FIPS 186-5 / SEC 1
+    source_url: https://csrc.nist.gov/pubs/fips/186-5/final
+    basis: spec
+    public_key_bytes: 65
+    signature_bytes: 64
+    note: "Raw r||s is 64 bytes; the DER encoding used in X.509 and TLS is typically 70-72 bytes. Uncompressed public key 65 bytes."
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+  RSA-2048:
+    standard: RFC 8017
+    source_url: https://www.rfc-editor.org/rfc/rfc8017
+    basis: spec
+    public_key_bytes: null
+    signature_bytes: 256
+    note: "Signature length equals the modulus length (2048 bits = 256 bytes). The public-key encoding size depends on the exponent and encoding, so it is left null."
+    keygen_us: null
+    sign_us: null
+    verify_us: null
+
+tls_hybrid_key_share:
+  X25519MLKEM768:
+    standard: RFC 10024
+    source_url: https://www.rfc-editor.org/rfc/rfc10024.txt
+    basis: derived
+    client_key_share_bytes: 1216
+    server_key_share_bytes: 1120
+    derivation: "client = X25519 public key (32) + ML-KEM-768 encapsulation key (1184); server = X25519 public key (32) + ML-KEM-768 ciphertext (1088)"
+    handshake_extra_bytes_vs_x25519: 2272
+    extra_derivation: "(1216 - 32) + (1120 - 32) = 2272 additional bytes across the two key shares versus X25519 alone; record-layer and framing overhead not included"

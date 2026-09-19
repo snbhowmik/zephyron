@@ -1,4 +1,4 @@
-.PHONY: build-agent build-theia build-images dev dev-down dev-logs test test-unit lint fmt schema-check scanners-pull demo sync
+.PHONY: knowledge-check build-agent build-theia build-images dev dev-down dev-logs test test-unit lint fmt schema-check scanners-pull demo sync
 
 # CLAUDE.md §5. Targets below are real where the underlying task has landed;
 # where it hasn't, the target says so explicitly and names the blocking task
@@ -82,3 +82,6 @@ build-theia: ## cross-compile CBOMkit-theia from pinned source for the agent (5 
 build-agent: build-theia ## freeze the agent for THIS OS/arch (PyInstaller does not cross-compile) -> dist/agent
 	uv sync --all-packages --group dev
 	uv run --all-packages python scripts/build_agent.py --theia-dir dist/theia
+
+knowledge-check: ## fail if any knowledge-base entry was verified more than 180 days ago (T-081)
+	uv run python scripts/check_knowledge_freshness.py

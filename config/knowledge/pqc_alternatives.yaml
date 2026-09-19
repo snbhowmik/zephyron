@@ -1,0 +1,172 @@
+# T-080 / ARCH.md 8.1 / FR-410. Replacement algorithms and their STANDARDISATION
+# STATUS. FR-410 is a hard requirement: presenting HQC or FN-DSA as an
+# available standard is the error a domain reviewer catches instantly.
+#
+# Every entry carries `status`, `verified_on` and `source_url`.
+#   status   final                  a published, final standard
+#            selected-not-published NIST chose it; no standard text yet.
+#                                   NOT a compliance claim.
+#            in-development         being standardised; do not recommend as final
+#   usable_as_recommendation  false for anything not `final`: such entries are
+#            shown as a "watch" item with their status, never as the answer.
+#   verified_on  the date this was checked against the source. `scripts/
+#            check_knowledge_freshness.py` (CI) fails when it is older than
+#            180 days, forcing a re-check. `null` = NOT verified, and then
+#            `unverified_reason` is mandatory and the UI must say so.
+#
+# Statuses below were re-checked against NIST CSRC / the RFC Editor on
+# 2026-09-20 (not merely copied from ARCH.md). Notably, ARCH.md-era guidance
+# treated the TLS hybrid groups as an IETF draft; they are now RFC 10024.
+
+alternatives:
+  ml-kem-768:
+    name: ML-KEM-768
+    family: ML-KEM
+    functions: [key-encapsulation, key-agreement, encryption]
+    standard: FIPS 203
+    status: final
+    status_date: 2024-08-13
+    usable_as_recommendation: true
+    replaces: [RSAES-OAEP, RSAES-PKCS1, ECDH, FFDH, X25519, X448]
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/fips/203/final
+    note: "Default key establishment. NIST's page carries a 2025-11-17 planning note about an issue to be corrected in a future revision; consult it before finalising an implementation."
+  ml-kem-1024:
+    name: ML-KEM-1024
+    family: ML-KEM
+    functions: [key-encapsulation, key-agreement, encryption]
+    standard: FIPS 203
+    status: final
+    status_date: 2024-08-13
+    usable_as_recommendation: true
+    replaces: [RSAES-OAEP, ECDH, FFDH]
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/fips/203/final
+    note: "Higher-strength parameter set; the choice for regimes that specify it (see hybrid_guidance.national-security)."
+  ml-dsa-65:
+    name: ML-DSA-65
+    family: ML-DSA
+    functions: [signature]
+    standard: FIPS 204
+    status: final
+    status_date: 2024-08-13
+    usable_as_recommendation: true
+    replaces: [RSASSA-PKCS1, RSASSA-PSS, ECDSA, EdDSA, DSA]
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/fips/204/final
+    note: "General-purpose signing. NIST's page carries a 2026-07-31 errata note (an errata spreadsheet under Documentation)."
+  ml-dsa-87:
+    name: ML-DSA-87
+    family: ML-DSA
+    functions: [signature]
+    standard: FIPS 204
+    status: final
+    status_date: 2024-08-13
+    usable_as_recommendation: true
+    replaces: [RSASSA-PKCS1, RSASSA-PSS, ECDSA, EdDSA]
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/fips/204/final
+    note: "Higher-strength parameter set."
+  slh-dsa:
+    name: SLH-DSA
+    family: SLH-DSA
+    functions: [signature]
+    standard: FIPS 205
+    status: final
+    status_date: 2024-08-13
+    usable_as_recommendation: true
+    replaces: [RSASSA-PKCS1, RSASSA-PSS, ECDSA, EdDSA]
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/fips/205/final
+    note: "Hash-based: chosen where diversity from lattice assumptions is wanted. Signatures are large (7.8 KB to 49.9 KB, see performance.yaml)."
+  lms-xmss:
+    name: LMS / XMSS
+    family: LMS
+    functions: [signature]
+    standard: NIST SP 800-208
+    status: final
+    status_date: 2020-10-01
+    usable_as_recommendation: true
+    replaces: [RSASSA-PKCS1, RSASSA-PSS, ECDSA, EdDSA]
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/sp/800/208/final
+    note: "STATEFUL: a one-time key must never be reused, so state management is a hard operational requirement. Suited to firmware/boot signing, not to general online signing."
+  hqc:
+    name: HQC
+    family: HQC
+    functions: [key-encapsulation]
+    standard: null
+    status: selected-not-published
+    status_date: 2025-03-11
+    usable_as_recommendation: false
+    replaces: []
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/projects/post-quantum-cryptography
+    note: "NIST selected HQC for standardisation on 2025-03-11 as a backup KEM built on different mathematics; the standard text is not published. NOT a compliance claim - do not present it as an available standard."
+  fn-dsa:
+    name: FN-DSA (Falcon)
+    family: FN-DSA
+    functions: [signature]
+    standard: FIPS 206
+    status: in-development
+    status_date: null
+    usable_as_recommendation: false
+    replaces: []
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/projects/post-quantum-cryptography
+    note: "Selected for ongoing standardisation; NIST reports the process as underway and csrc.nist.gov has no published FIPS 206 page (checked 2026-09-20). Would help where signature size matters, once it exists. Do not recommend as final."
+
+# Non-quantum fixes for CLASSICAL_WEAK and GROVER_AFFECTED findings. These are
+# not PQC recommendations and are reported as such (I1).
+classical_fixes:
+  hash-md5-sha1:
+    name: SHA-256 or SHA-3
+    replaces: [MD5, SHA-1]
+    standard: FIPS 180-4 / FIPS 202
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/fips/180-4/upd1/final
+    note: "Existence and current (not withdrawn) status of FIPS 180-4 (Aug 2015) and FIPS 202 (Aug 2015) confirmed on CSRC 2026-09-20."
+  symmetric-weak:
+    name: AES-256-GCM
+    replaces: [DES, 3DES, RC4, Blowfish]
+    standard: FIPS 197 / SP 800-38D
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/fips/197/final
+    note: "Existence and current status of FIPS 197 (Nov 2001) and SP 800-38D (Nov 2007) confirmed on CSRC 2026-09-20."
+  grover-prefer-256:
+    name: AES-256 / SHA-384 or larger
+    replaces: [AES-128]
+    standard: FIPS 197 / FIPS 180-4
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/fips/197/final
+    note: "Informational only (I1): Grover halves effective strength, it does not break AES-128. Never a 'migrate now' finding."
+
+# ARCH.md 8.2: hybrid is CONTEXTUAL, not universal. Where a regime has a
+# position, state the regime's position, not QAVACH's opinion.
+hybrid_guidance:
+  tls-transition:
+    position: hybrid
+    context: "General TLS during transition"
+    recommend: X25519MLKEM768
+    reason: "Hybrid preserves interoperability with non-PQC peers and keeps security if either half is broken. The hybrid TLS 1.3 groups X25519MLKEM768, SecP256r1MLKEM768 and SecP384r1MLKEM1024 are specified in RFC 10024 (Standards Track, August 2026)."
+    verified_on: 2026-09-20
+    source_url: https://www.rfc-editor.org/rfc/rfc10024.txt
+  national-security:
+    position: pure-pqc
+    context: "CNSA 2.0 / National Security Systems"
+    reason: "CNSA 2.0 prefers pure PQC for National Security Systems (per ARCH.md 8.2). This is the regime's stated position, not QAVACH's opinion."
+    verified_on: null
+    unverified_reason: "the NSA CNSA 2.0 document could not be retrieved on 2026-09-20 (media.defense.gov returned HTML, not the PDF); the position and its parameter sets are as recorded in ARCH.md 8.2 and must be checked against the primary source"
+    source_url: https://www.nsa.gov/Cybersecurity/Post-Quantum-Cybersecurity-Resources/
+  size-constrained:
+    position: flag-size-cost
+    context: "Constrained links, embedded devices, bandwidth-critical paths"
+    reason: "Hybrid carries both halves, and ML-DSA signatures are already far larger than ECDSA. Quantify the cost from performance.yaml before deciding. FN-DSA would help but is not yet a standard."
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/fips/204/final
+  archival-confidentiality:
+    position: pqc-must-carry
+    context: "Long-term archival confidentiality"
+    reason: "Data that must stay confidential past the classical deprecation horizon cannot rely on the classical half, so the PQC component must carry the security. NIST IR 8547 (initial public draft, comments closed) proposes disallowing quantum-vulnerable algorithms after 2035."
+    verified_on: 2026-09-20
+    source_url: https://csrc.nist.gov/pubs/ir/8547/ipd
