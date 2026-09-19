@@ -1,6 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
 import { api } from "@/api/client";
 import type { AssetDetail as Detail, Occurrence, RegisterEntry } from "@/api/types";
 import {
@@ -17,6 +14,9 @@ import {
 import { useScanId } from "@/hooks";
 import { styleFor } from "@/lib/findingClass";
 import { years } from "@/lib/utils";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
 function locusText(locus: Occurrence["locus"]): string {
   const l = locus as Record<string, unknown>;

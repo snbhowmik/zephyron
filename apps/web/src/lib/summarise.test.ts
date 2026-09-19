@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { RegisterEntry } from "@/api/types";
+import { describe, expect, it } from "vitest";
 import { assetLevel, bindingConstraint, humaniseBound, outcomeCounts } from "./summarise";
 
 const entry = (over: Partial<RegisterEntry>): RegisterEntry =>

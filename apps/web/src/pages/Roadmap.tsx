@@ -1,12 +1,12 @@
+import { api } from "@/api/client";
+import type { RoadmapResponse } from "@/api/types";
+import { Card, CardTitle, ErrorBox, Loading, Pill } from "@/components/ui";
+import { useScanId } from "@/hooks";
 import { useQuery } from "@tanstack/react-query";
 import cytoscape from "cytoscape";
 // @ts-expect-error - cytoscape-dagre ships no type declarations
 import dagre from "cytoscape-dagre";
 import { useEffect, useRef } from "react";
-import { api } from "@/api/client";
-import type { RoadmapResponse } from "@/api/types";
-import { Card, CardTitle, ErrorBox, Loading, Pill } from "@/components/ui";
-import { useScanId } from "@/hooks";
 
 cytoscape.use(dagre);
 

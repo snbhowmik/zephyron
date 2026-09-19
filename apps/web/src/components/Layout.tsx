@@ -1,8 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, NavLink, Outlet } from "react-router-dom";
-import { api } from "@/api/client";
+import { ApiError, api, getToken, setToken } from "@/api/client";
 import { useScanId } from "@/hooks";
 import { cn } from "@/lib/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Link, NavLink, Outlet } from "react-router-dom";
 
 const NAV = [
   { to: "/", label: "Posture", end: true },
@@ -14,10 +15,57 @@ const NAV = [
   { to: "/history", label: "History" },
 ];
 
+function TokenGate({ onSaved }: { onSaved: () => void }) {
+  const [value, setValue] = useState("");
+  return (
+    <div className="mx-auto max-w-md p-8" data-testid="token-gate">
+      <h1 className="mb-2 text-lg font-semibold">Authentication required</h1>
+      <p className="mb-4 text-sm text-slate-400">
+        This QAVACH API needs its access token. It is kept for this browser tab only and is never
+        placed in a URL.
+      </p>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          setToken(value.trim());
+          onSaved();
+        }}
+        className="flex gap-2"
+      >
+        <input
+          type="password"
+          autoComplete="off"
+          aria-label="API token"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          className="flex-1 rounded-md bg-slate-900 px-3 py-1.5 text-sm ring-1 ring-slate-700"
+        />
+        <button type="submit" className="rounded-md bg-sky-600 px-3 py-1.5 text-sm">
+          Continue
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export function Layout() {
+  const queryClient = useQueryClient();
   const meta = useQuery({ queryKey: ["meta"], queryFn: api.meta });
   const scans = useQuery({ queryKey: ["scans"], queryFn: api.scans });
   const { scanId, setScan } = useScanId();
+
+  const needsToken =
+    meta.data?.auth === "bearer" &&
+    (!getToken() || (scans.error instanceof ApiError && scans.error.status === 401));
+  if (needsToken) {
+    return (
+      <TokenGate
+        onSaved={() => {
+          void queryClient.invalidateQueries();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen">

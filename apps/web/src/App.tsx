@@ -1,12 +1,12 @@
-import { Route, Routes } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { Agents, History } from "@/pages/Stubs";
 import { AssetDetail } from "@/pages/AssetDetail";
 import { Dashboard } from "@/pages/Dashboard";
 import { Inventory } from "@/pages/Inventory";
 import { Mosca } from "@/pages/Mosca";
 import { NewScan } from "@/pages/NewScan";
 import { Roadmap } from "@/pages/Roadmap";
+import { Agents, History } from "@/pages/Stubs";
+import { Route, Routes } from "react-router-dom";
 
 export function App() {
   return (

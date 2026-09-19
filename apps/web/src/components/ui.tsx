@@ -1,7 +1,7 @@
-import { cva, type VariantProps } from "class-variance-authority";
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { type FindingClass, bandFor, styleFor } from "@/lib/findingClass";
 import { cn } from "@/lib/utils";
+import { type VariantProps, cva } from "class-variance-authority";
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 
 const button = cva(
   "inline-flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:opacity-50",

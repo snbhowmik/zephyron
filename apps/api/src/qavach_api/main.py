@@ -10,8 +10,9 @@ Configuration is environment-only (nothing secret is ever read from a file):
   has real data to show. Demo data is labelled as such by the API
   (`/api/v1/meta`); it is never presented as a live scan.
 
-**There is no authentication yet.** This binds to localhost by default; do not
-expose it. See `NOTE.md`.
+* `QAVACH_API_TOKEN`     if set (>= 16 chars), every route but `/api/v1/meta`
+  requires `Authorization: Bearer <token>` (`qavach_api.auth`). If unset there is
+  **no authentication**: bind to localhost only and do not expose it.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from qavach_storage import Repository, create_all, make_engine, session_factory
 from qavach_worker import Deps
 
 from qavach_api.app import AppState, create_app
+from qavach_api.auth import BearerAuth
 
 POLICY_DOCS = (
     "z_scenarios",
@@ -101,6 +103,12 @@ def build_app() -> Any:
 
     state = AppState(session_factory=session_factory(engine), deps=deps)
     app = create_app(state)
+    token = os.environ.get("QAVACH_API_TOKEN")
+    if token:
+        app.add_middleware(BearerAuth, token=token)
+        meta["auth"] = "bearer"
+    # Added after the auth middleware so CORS is outermost and answers
+    # preflight (which carries no credentials) before auth sees it.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],

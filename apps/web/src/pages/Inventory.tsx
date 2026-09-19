@@ -1,5 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
 import { api } from "@/api/client";
 import type { AssetListItem } from "@/api/types";
 import {
@@ -15,6 +13,8 @@ import {
 import { useScanId } from "@/hooks";
 import { styleFor } from "@/lib/findingClass";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router-dom";
 
 const FACETS: { key: string; label: string; param: string }[] = [
   { key: "finding_class", label: "Finding class", param: "finding_class" },

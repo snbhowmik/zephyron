@@ -1,11 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { api } from "@/api/client";
 import { BandBadge, Card, CardTitle, ErrorBox, Heuristic, Loading } from "@/components/ui";
 import { useScanId } from "@/hooks";
 import { BAND, type Band } from "@/lib/findingClass";
 import { bindingConstraint, humaniseBound } from "@/lib/summarise";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 const SCENARIOS = ["aggressive", "nominal", "conservative"];
 

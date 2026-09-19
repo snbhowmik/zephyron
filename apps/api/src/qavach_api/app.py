@@ -44,6 +44,8 @@ from qavach_worker import Deps, ProgressEvent, ScanRequest, run_scan, simulate
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from qavach_api.auth import websocket_subprotocol
+
 API_PREFIX = "/api/v1"
 
 
@@ -248,7 +250,7 @@ def create_app(state: AppState) -> FastAPI:
             if Repository(session).get_scan(scan_id) is None:
                 await ws.close(code=4404)
                 return
-        await ws.accept()
+        await ws.accept(subprotocol=websocket_subprotocol(ws.scope))
         sent = 0
         try:
             for _ in range(60 * 20):  # bounded: 60 s at 50 ms

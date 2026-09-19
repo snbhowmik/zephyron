@@ -19,8 +19,37 @@ export class ApiError extends Error {
   }
 }
 
+const TOKEN_KEY = "qavach.api-token";
+
+/** The bearer token lives in sessionStorage only: gone when the tab closes, never
+ *  in a URL or a log (SECURITY.md §6). */
+export function getToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token: string | null): void {
+  try {
+    if (token) sessionStorage.setItem(TOKEN_KEY, token);
+    else sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* storage unavailable: the token simply is not remembered */
+  }
+}
+
+function withAuth(init?: RequestInit): RequestInit {
+  const token = getToken();
+  if (!token) return init ?? {};
+  const headers = new Headers(init?.headers);
+  headers.set("authorization", `Bearer ${token}`);
+  return { ...init, headers };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init);
+  const response = await fetch(path, withAuth(init));
   if (!response.ok) {
     let detail = response.statusText;
     try {
@@ -92,13 +121,36 @@ export const api = {
     assetId: string,
     body: { attribute: string; value: string; by: string; reason: string },
   ) => request<{ adjudication_id: string }>(`/api/v1/assets/${assetId}/adjudicate`, json(body)),
-  exportUrl: (id: string, kind: "cbom" | "risk-register", spec = "1.7") =>
-    kind === "cbom"
-      ? `/api/v1/scans/${id}/export/cbom?spec=${spec}`
-      : `/api/v1/scans/${id}/export/risk-register`,
 };
 
 export function progressSocket(scanId: string): WebSocket {
   const proto = window.location.protocol === "https:" ? "wss" : "ws";
-  return new WebSocket(`${proto}://${window.location.host}/api/v1/scans/${scanId}/progress`);
+  const token = getToken();
+  // A browser WebSocket cannot set headers; the token rides as a subprotocol,
+  // never in the URL (access logs).
+  return new WebSocket(
+    `${proto}://${window.location.host}/api/v1/scans/${scanId}/progress`,
+    token ? [`qavach.bearer.${token}`] : undefined,
+  );
+}
+
+/** Exports are fetched (so the Authorization header goes with them) and saved
+ *  from a Blob - a plain link could not authenticate. */
+export async function downloadExport(
+  id: string,
+  kind: "cbom" | "risk-register",
+  spec = "1.7",
+): Promise<void> {
+  const path =
+    kind === "cbom"
+      ? `/api/v1/scans/${id}/export/cbom?spec=${spec}`
+      : `/api/v1/scans/${id}/export/risk-register`;
+  const response = await fetch(path, withAuth());
+  if (!response.ok) throw new ApiError(response.status, response.statusText);
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = kind === "cbom" ? `${id}.cbom-${spec}.cdx.json` : `${id}.risk-register.json`;
+  link.click();
+  URL.revokeObjectURL(url);
 }

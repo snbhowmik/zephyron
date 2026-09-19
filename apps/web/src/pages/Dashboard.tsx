@@ -1,6 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { api } from "@/api/client";
+import { api, downloadExport } from "@/api/client";
 import {
   Card,
   CardTitle,
@@ -16,6 +14,8 @@ import { useScanId } from "@/hooks";
 import { FINDING_CLASSES, styleFor } from "@/lib/findingClass";
 import { assetLevel, bindingConstraint, humaniseBound, outcomeCounts } from "@/lib/summarise";
 import { pct } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 
 export function Dashboard() {
   const { scanId, isLoading } = useScanId();
@@ -194,24 +194,27 @@ export function Dashboard() {
       <Card>
         <CardTitle>Exports</CardTitle>
         <div className="flex flex-wrap gap-2 text-sm">
-          <a
+          <button
+            type="button"
             className="rounded-md bg-slate-800 px-3 py-1.5 ring-1 ring-slate-700 hover:bg-slate-700"
-            href={api.exportUrl(scanId, "cbom")}
+            onClick={() => void downloadExport(scanId, "cbom")}
           >
             CBOM · CycloneDX 1.7
-          </a>
-          <a
+          </button>
+          <button
+            type="button"
             className="rounded-md bg-slate-800 px-3 py-1.5 ring-1 ring-slate-700 hover:bg-slate-700"
-            href={api.exportUrl(scanId, "cbom", "1.6")}
+            onClick={() => void downloadExport(scanId, "cbom", "1.6")}
           >
             CBOM · CycloneDX 1.6
-          </a>
-          <a
+          </button>
+          <button
+            type="button"
             className="rounded-md bg-slate-800 px-3 py-1.5 ring-1 ring-slate-700 hover:bg-slate-700"
-            href={api.exportUrl(scanId, "risk-register")}
+            onClick={() => void downloadExport(scanId, "risk-register")}
           >
             Crypto Risk Register (JSON)
-          </a>
+          </button>
         </div>
         <div className="mt-3">
           <StubNotice title="Executive PDF report" task="T-094">

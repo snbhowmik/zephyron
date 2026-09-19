@@ -1,9 +1,9 @@
-import { useMutation } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { api, progressSocket } from "@/api/client";
 import type { ProgressEvent } from "@/api/types";
 import { Button, Card, CardTitle, ErrorBox, Pill, StubNotice } from "@/components/ui";
+import { useMutation } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 /** FR-601: the target-type selector. `supported` = what the current build can actually run. */
 const TARGETS = [
