@@ -8,12 +8,9 @@ of `enrollment.py` and `runtime.py`:
       --credential-out PATH
   qavach-agent run --backend-url URL --credential PATH [--poll-interval N]
 
-No real agent-side collector exists yet (`tls.store` etc. are still-open
-Phase 3 tasks — T-036, T-036a, T-041, T-042), so `run` currently polls and
-reports with an empty `CollectorRegistry`; it will pick up real collectors
-the moment `apps/agent` imports them (`CLAUDE.md §3`'s "no
-`packages/collectors/host/`" rule — this entrypoint is the thin shell that
-is meant to import them directly)."""
+`run` registers the real agent-side collectors via `registry.build_registry`
+(T-031d); this entrypoint stays a thin shell that imports them directly
+(`CLAUDE.md §3`'s "no `packages/collectors/host/`" rule)."""
 
 from __future__ import annotations
 
@@ -23,10 +20,9 @@ import logging
 import sys
 from pathlib import Path
 
-from qavach_collectors import CollectorRegistry
-
 from qavach_agent.enrollment import AgentCredential, EnrollmentError, enroll
 from qavach_agent.parser_worker import parse_worker_main
+from qavach_agent.registry import build_registry
 from qavach_agent.runtime import RunForeverConfig, run_forever
 from qavach_agent.transport import AgentTransport
 
@@ -53,7 +49,10 @@ def _cmd_enroll(args: argparse.Namespace) -> int:
 
 def _cmd_run(args: argparse.Namespace) -> int:
     credential = AgentCredential.from_json_dict(json.loads(Path(args.credential).read_text()))
-    registry = CollectorRegistry()
+    built = build_registry(config_dir=Path(args.config_dir) if args.config_dir else None)
+    for name, reason in built.skipped.items():
+        logger.warning("collector %s not registered: %s", name, reason)
+    registry = built.registry
     config = RunForeverConfig(poll_interval_seconds=args.poll_interval)
 
     with AgentTransport(backend_url=args.backend_url, credential=credential) as client:
@@ -95,6 +94,9 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--backend-url", required=True)
     run_parser.add_argument("--credential", required=True)
     run_parser.add_argument("--poll-interval", type=float, default=30.0)
+    run_parser.add_argument(
+        "--config-dir", help="knowledge tables (default: bundled, or QAVACH_CONFIG_DIR)"
+    )
     run_parser.set_defaults(func=_cmd_run)
 
     # Internal: re-exec target for parser_worker.run_in_worker (ARCH.md

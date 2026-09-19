@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import time
 
-from qavach_core.model import ConfidenceTier, NetworkLocus
+from qavach_core.model import ConfidenceTier, Locus, NetworkLocus
 
 from qavach_collectors.base import (
     CollectorError,
@@ -90,61 +90,64 @@ def _cipher_mode(algorithm: str) -> str | None:
     return _CIPHER_MODE.get(tail)
 
 
-def claims_from_kexinit(
-    kexinit: KexInit, host_keys: list[HostKey], *, locus: NetworkLocus, confidence: ConfidenceTier
+def algorithm_claims(
+    table: dict[str, _Mapping],
+    algorithms: tuple[str, ...],
+    *,
+    locus: Locus,
+    confidence: ConfidenceTier,
+    with_mode: bool = False,
 ) -> list[RawClaim]:
     claims: list[RawClaim] = []
-
-    def add(
-        table: dict[str, _Mapping], algorithms: tuple[str, ...], *, with_mode: bool = False
-    ) -> None:
-        for algorithm in algorithms:
-            if algorithm in PSEUDO_ALGORITHMS:
-                continue
-            mapping = _lookup(table, algorithm)
-            if mapping is None:
-                # I8: an algorithm we cannot map is reported under its own
-                # name so it surfaces as UNKNOWN, never silently dropped.
-                claims.append(
-                    RawClaim(
-                        locus=locus,
-                        name=algorithm,
-                        detection_method="runtime",
-                        confidence=confidence,
-                    )
-                )
-                continue
-            name, primitive, parameter_set = mapping
+    for algorithm in algorithms:
+        if algorithm in PSEUDO_ALGORITHMS:
+            continue
+        mapping = _lookup(table, algorithm)
+        if mapping is None:
+            # I8: an algorithm we cannot map is reported under its own name
+            # so it surfaces as UNKNOWN, never silently dropped.
             claims.append(
                 RawClaim(
-                    locus=locus,
-                    name=name,
-                    primitive=primitive,
-                    parameter_set=parameter_set,
-                    mode=_cipher_mode(algorithm) if with_mode else None,
-                    detection_method="runtime",
-                    confidence=confidence,
+                    locus=locus, name=algorithm, detection_method="runtime", confidence=confidence
                 )
             )
-
-    add(_KEX, kexinit.kex_algorithms)
-    add(_CIPHER, kexinit.encryption_algorithms, with_mode=True)
-    add(_MAC, kexinit.mac_algorithms)
-
-    for key in host_keys:
-        parameter_set = key.curve_name or (
-            str(key.size_bits) if key.size_bits is not None else None
-        )
+            continue
+        name, primitive, parameter_set = mapping
         claims.append(
             RawClaim(
                 locus=locus,
-                name=key.algorithm,
-                primitive="signature",
+                name=name,
+                primitive=primitive,
                 parameter_set=parameter_set,
+                mode=_cipher_mode(algorithm) if with_mode else None,
                 detection_method="runtime",
                 confidence=confidence,
             )
         )
+    return claims
+
+
+def host_key_claim(key: HostKey, *, locus: Locus, confidence: ConfidenceTier) -> RawClaim:
+    parameter_set = key.curve_name or (str(key.size_bits) if key.size_bits is not None else None)
+    return RawClaim(
+        locus=locus,
+        name=key.algorithm,
+        primitive="signature",
+        parameter_set=parameter_set,
+        detection_method="runtime",
+        confidence=confidence,
+    )
+
+
+def claims_from_kexinit(
+    kexinit: KexInit, host_keys: list[HostKey], *, locus: Locus, confidence: ConfidenceTier
+) -> list[RawClaim]:
+    claims = algorithm_claims(_KEX, kexinit.kex_algorithms, locus=locus, confidence=confidence)
+    claims += algorithm_claims(
+        _CIPHER, kexinit.encryption_algorithms, locus=locus, confidence=confidence, with_mode=True
+    )
+    claims += algorithm_claims(_MAC, kexinit.mac_algorithms, locus=locus, confidence=confidence)
+    claims += [host_key_claim(key, locus=locus, confidence=confidence) for key in host_keys]
     return claims
 
 
