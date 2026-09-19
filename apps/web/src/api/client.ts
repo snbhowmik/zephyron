@@ -1,6 +1,9 @@
 import type {
+  AgentDetail,
+  AgentSummary,
   AssetDetail,
   AssetPage,
+  IssuedToken,
   Meta,
   PolicyDoc,
   RiskRegister,
@@ -9,6 +12,7 @@ import type {
   ScanDiff,
   ScanListItem,
   SimulateResult,
+  TokenRow,
 } from "./types";
 
 export class ApiError extends Error {
@@ -96,6 +100,15 @@ export const api = {
   meta: () => request<Meta>("/api/v1/meta"),
   scans: () => request<ScanListItem[]>("/api/v1/scans"),
   scan: (id: string) => request<ScanDetail>(`/api/v1/scans/${id}`),
+  agents: () => request<AgentSummary[]>("/api/v1/agents"),
+  agent: (id: string) => request<AgentDetail>(`/api/v1/agents/${id}`),
+  agentTokens: () => request<TokenRow[]>("/api/v1/agents/tokens"),
+  issueToken: (body: { host: string; ttl_minutes: number }) =>
+    request<IssuedToken>("/api/v1/agents/tokens", json(body)),
+  dispatchAgent: (id: string, body: { paths: string[]; collectors: string[] }) =>
+    request<{ run_id: string }>(`/api/v1/agents/${id}/dispatch`, json(body)),
+  revokeAgent: (id: string) =>
+    request<{ revoked: boolean }>(`/api/v1/agents/${id}/revoke`, { method: "POST" }),
   diff: (before: string, after: string) =>
     request<ScanDiff>(`/api/v1/scans/${before}/diff/${after}`),
   assets: (id: string, query: AssetQuery) =>

@@ -6,11 +6,10 @@ it, posts results, and closes.' `poll_once` is exactly one such cycle;
 one backend URL the caller's `httpx.Client` (from `transport.AgentTransport`)
 is bound to — there is no second endpoint this module knows how to reach.
 
-# QAVACH-OPEN: AGENT-01 — the wire shape of `POST .../results` is not pinned
-down anywhere in `ARCH.md`/`PRD.md`; `serialize_collector_result` below is
-the smallest defensible JSON encoding of `CollectorResult` (`ARCH.md §2.1`),
-not a contract `T-073a`'s backend is guaranteed to match byte-for-byte.
-Revisit when `T-073a` defines the real endpoint.
+AGENT-01 (resolved, T-073a): `serialize_collector_result` below and its inverse
+`deserialize_collector_result` are the wire contract for `POST .../results`; the
+backend (`qavach_api.agent_routes`) uses the inverse, and a round-trip test pins
+the pair. The body is `{"results": {<collector>: [<serialized result>, ...]}}`.
 """
 
 from __future__ import annotations
@@ -21,10 +20,18 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 from qavach_collectors import CollectorRegistry, CollectorResult, RunContext, Target, TargetType
-from qavach_core.model import locus_to_dict
+from qavach_collectors.base import (
+    CollectorError,
+    RawClaim,
+    RawFormat,
+    ToolIdentity,
+)
+from qavach_core.model import locus_from_dict, locus_to_dict
+from qavach_core.model.enums import ConfidenceTier
 
 from qavach_agent.spec import InvalidScanSpecError, ScanSpec, parse_scan_spec
 
@@ -78,6 +85,42 @@ def serialize_collector_result(result: CollectorResult) -> dict[str, object]:
         "errors": [{"message": e.message, "fatal": e.fatal} for e in result.errors],
         "partial": result.partial,
     }
+
+
+def deserialize_collector_result(data: dict[str, Any]) -> CollectorResult:
+    """Inverse of `serialize_collector_result` - used by the backend to turn a
+    posted result back into a `CollectorResult` for the normal pipeline. Raises
+    `ValueError`/`KeyError` on any malformed field: the backend must never
+    half-ingest a result it did not fully understand."""
+    return CollectorResult(
+        raw=base64.b64decode(data["raw_base64"], validate=True),
+        raw_format=RawFormat(data["raw_format"]),
+        claims=[
+            RawClaim(
+                locus=locus_from_dict(c["locus"]),
+                name=c.get("name"),
+                oid=c.get("oid"),
+                primitive=c.get("primitive"),
+                parameter_set=c.get("parameter_set"),
+                mode=c.get("mode"),
+                padding=c.get("padding"),
+                detection_method=c["detection_method"],
+                confidence=ConfidenceTier(int(c["confidence"])),
+            )
+            for c in data["claims"]
+        ],
+        tool=ToolIdentity(
+            name=data["tool"]["name"],
+            version=data["tool"]["version"],
+            invocation=tuple(data["tool"]["invocation"]),
+            exit_code=data["tool"]["exit_code"],
+            duration_seconds=float(data["tool"]["duration_seconds"]),
+        ),
+        errors=[
+            CollectorError(message=e["message"], fatal=bool(e["fatal"])) for e in data["errors"]
+        ],
+        partial=bool(data["partial"]),
+    )
 
 
 def poll_once(

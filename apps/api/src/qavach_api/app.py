@@ -48,6 +48,8 @@ from qavach_worker import Deps, ProgressEvent, ScanRequest, run_scan, simulate
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from qavach_api.agent_ca import AgentCA
+from qavach_api.agent_routes import ReplayGuard, register_agent_routes
 from qavach_api.auth import websocket_subprotocol
 
 API_PREFIX = "/api/v1"
@@ -100,6 +102,9 @@ class AppState:
     hub: ProgressHub = field(default_factory=ProgressHub)
     runner: ScanRunner = field(default_factory=threaded_runner)
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)  # noqa: E731
+    agent_ca: Callable[[], AgentCA] | None = None
+    """Lazily builds the agent CA (`None`: agent enrolment not configured)."""
+    replay_guard: ReplayGuard = field(default_factory=ReplayGuard)
 
 
 class ScanBody(BaseModel):
@@ -150,6 +155,7 @@ RepoDep = Annotated[Repository, Depends(get_repo)]
 def create_app(state: AppState) -> FastAPI:
     app = FastAPI(title="QAVACH", version="0.1.0")
     app.state.qavach = state
+    register_agent_routes(app, API_PREFIX)
 
     def scan_or_404(repo: Repository, scan_id: str) -> models.ScanRun:
         scan = repo.get_scan(scan_id)

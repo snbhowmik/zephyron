@@ -154,7 +154,7 @@ progress, and the inventory endpoint returns faceted results in under 500ms for
 | ☒ | T-071 ★ | Repositories. `packages/core` stays pure — repositories live in `packages/storage`. | T-070 |
 | ☒ | T-072 ★ | RQ pipeline orchestration: collect → normalise → reconcile → context → risk → recommend → roadmap. Per-stage status, per-collector partial failure. | T-030, T-071 |
 | ☒ | T-073 ★ | FastAPI surface per `ARCH.md §12`. Transport only — zero business logic in route handlers. | T-072 |
-| ☐ | T-073a ★ | Agent enrollment/registry backend: single-use token issuance, mTLS credential exchange, `agents`/`agent_runs` persistence (`ARCH.md §3a`, §11), spec-polling and results-ingestion endpoints. | T-070, T-073, T-031a |
+| ☑ | T-073a ★ | Agent enrollment/registry backend: single-use token issuance, mTLS credential exchange, `agents`/`agent_runs` persistence (`ARCH.md §3a`, §11), spec-polling and results-ingestion endpoints. | T-070, T-073, T-031a |
 | ☒ | T-074 ★ | WebSocket progress with per-collector status events. | T-072 |
 | ☐ | T-075 ★ | **Surface built and tested; the 1 s budget is NOT yet met end to end** — scoring 50k assets takes 0.75 s, but loading them from SQLite pushes the total to 1.66 s (Postgres not measured). `POST /policy/simulate` — pure re-score over stored assets, no re-scan. Must return in under 1s for 50k assets; this powers the Mosca explorer. | T-068, T-073 |
 | ☒ | T-076 | Suppressions with reason and expiry; persist across scans; write to the audit log. | T-071 |
@@ -209,7 +209,7 @@ console commands.
 |---|---|---|---|
 | ◐ | T-100 ★ | **(partial: API types are hand-written in `src/api/types.ts`, not generated; `gen:api` script exists but is unused)** Vite + React + TS + Tailwind + shadcn/ui shell; TanStack Query; typed API client generated from the OpenAPI schema. | T-073 |
 | ☐ | T-101 ★ | New-scan flow: **target-type selector** (FR-601 — Repository, Container Image, Network/TLS Endpoint, Directory Service, Cloud Account, Host, External upload), then target entry, systems CSV upload, collector selection, live WebSocket progress. Selecting Host routes to T-101a. | T-100, T-074 |
-| ☐ | T-101a ★ | **Agent enrollment flow (sensor management, FR-133)**: generate a single-use token, show install instructions, list every enrolled agent's identity/host/online-offline status/per-run history. | T-101, T-073a |
+| ☑ | T-101a ★ | **Agent enrollment flow (sensor management, FR-133)**: generate a single-use token, show install instructions, list every enrolled agent's identity/host/online-offline status/per-run history. | T-101, T-073a |
 | ☑ | T-102 ★ | Posture dashboard: counts by finding class, systems by CARAF outcome, the binding deadline banner, count of assets that miss it. | T-100 |
 | ◐ | T-103 ★ | **(partial: server-side pagination at 25/page, faceted; not virtualised)** Inventory table: virtualised, faceted by class, function, algorithm, system, criticality, confidence, disputed. | T-100 |
 | ☑ | T-104 ★ | Asset detail: every occurrence with locus and provenance; full risk computation with inputs visible; recommendation with citations. **The reconciliation view — one asset, N occurrences, N tools — is the single most important screen in the product. Make it obvious at a glance.** | T-103, T-067 |

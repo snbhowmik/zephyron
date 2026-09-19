@@ -6,6 +6,7 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from qavach_storage import models
+from qavach_storage.agents import AgentRepository, as_utc
 from qavach_storage.models import Base
 from qavach_storage.repository import (
     UNASSIGNED,
@@ -30,6 +31,8 @@ def session_factory(engine: Engine) -> sessionmaker[Session]:
 
 
 __all__ = [
+    "AgentRepository",
+    "as_utc",
     "UNASSIGNED",
     "AssetFilter",
     "AssetPage",

@@ -10,6 +10,8 @@ Configuration is environment-only (nothing secret is ever read from a file):
   has real data to show. Demo data is labelled as such by the API
   (`/api/v1/meta`); it is never presented as a live scan.
 
+* `QAVACH_AGENT_CA_DIR`  where the agent-credential CA key lives (created on first
+  enrolment, mode 0600). Default `dist/agent-ca`.
 * `QAVACH_API_TOKEN`     if set (>= 16 chars), every route but `/api/v1/meta`
   requires `Authorization: Bearer <token>` (`qavach_api.auth`). If unset there is
   **no authentication**: bind to localhost only and do not expose it.
@@ -34,6 +36,7 @@ from qavach_core.risk import ClassificationRules
 from qavach_storage import Repository, create_all, make_engine, session_factory
 from qavach_worker import Deps
 
+from qavach_api.agent_ca import AgentCA
 from qavach_api.app import AppState, create_app
 from qavach_api.auth import BearerAuth
 
@@ -101,7 +104,12 @@ def build_app() -> Any:
     else:
         deps = load_deps(config, registry)
 
-    state = AppState(session_factory=session_factory(engine), deps=deps)
+    ca_dir = Path(os.environ.get("QAVACH_AGENT_CA_DIR", root / "dist" / "agent-ca"))
+    state = AppState(
+        session_factory=session_factory(engine),
+        deps=deps,
+        agent_ca=lambda: AgentCA.load_or_create(ca_dir),
+    )
     app = create_app(state)
     token = os.environ.get("QAVACH_API_TOKEN")
     if token:

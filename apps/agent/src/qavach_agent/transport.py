@@ -19,6 +19,7 @@ from types import TracebackType
 import httpx
 
 from qavach_agent.enrollment import AgentCredential
+from qavach_agent.signing import SignedRequestAuth
 
 
 class AgentTransport:
@@ -57,6 +58,7 @@ class AgentTransport:
         self._client = httpx.Client(
             base_url=self._backend_url,
             verify=ssl_context,
+            auth=SignedRequestAuth(self._credential.private_key_pem),
             timeout=self._timeout_seconds,
         )
         return self._client

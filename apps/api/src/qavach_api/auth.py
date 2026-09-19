@@ -16,6 +16,7 @@ route echoes the subprotocol back so the handshake completes.
 from __future__ import annotations
 
 import hmac
+import re
 from collections.abc import Awaitable, Callable, MutableMapping
 from typing import Any
 
@@ -25,6 +26,9 @@ Send = Callable[[MutableMapping[str, Any]], Awaitable[None]]
 
 WS_SUBPROTOCOL_PREFIX = "qavach.bearer."
 PUBLIC_PATHS = frozenset({"/api/v1/meta"})
+# Agents do not hold the operator token. These routes authenticate themselves
+# (enrolment token / request signature, `agent_routes`) and enforce that always.
+AGENT_SELF_AUTH = re.compile(r"^/api/v1/agents/(enroll|[^/]+/(spec|results))$")
 
 
 def _presented_token(scope: Scope) -> str | None:
@@ -55,7 +59,12 @@ class BearerAuth:
         self._token = token.encode()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] not in {"http", "websocket"} or scope.get("path") in PUBLIC_PATHS:
+        path = str(scope.get("path", ""))
+        if (
+            scope["type"] not in {"http", "websocket"}
+            or path in PUBLIC_PATHS
+            or (scope["type"] == "http" and AGENT_SELF_AUTH.match(path))
+        ):
             await self.app(scope, receive, send)
             return
         presented = _presented_token(scope)

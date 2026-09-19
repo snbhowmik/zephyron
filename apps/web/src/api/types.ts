@@ -309,3 +309,47 @@ export interface ScanDiff {
   changed: DiffChange[];
   caveats: string[];
 }
+
+export interface AgentSummary {
+  id: string;
+  host: string;
+  os: string;
+  status: "active" | "revoked";
+  online: boolean;
+  enrolled_at: string;
+  last_seen: string | null;
+  credential_fingerprint: string;
+  credential_expires: string;
+  runs: number | null;
+}
+
+export interface AgentRunRow {
+  id: string;
+  status: string;
+  spec: { paths: string[]; collectors: string[] };
+  queued_at: string;
+  finished: string | null;
+  scan_run_id: string | null;
+  partial: boolean;
+  detail: string | null;
+}
+
+export interface AgentDetail extends AgentSummary {
+  run_history: AgentRunRow[];
+}
+
+export interface IssuedToken {
+  token_id: string;
+  token: string;
+  host: string;
+  expires_at: string;
+}
+
+export interface TokenRow {
+  id: string;
+  host: string;
+  state: "pending" | "consumed" | "expired";
+  created_at: string;
+  expires_at: string;
+  consumed_by_agent: string | null;
+}

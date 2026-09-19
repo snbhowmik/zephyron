@@ -249,3 +249,57 @@ class AuditLog(Base):
     subject: Mapped[str] = mapped_column(String(256))
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     detail_json: Mapped[dict[str, Any] | None] = mapped_column(Json)
+
+
+class AgentToken(Base):
+    """A single-use enrollment token, scoped to exactly one host (ARCH.md §3a).
+    Only the SHA-256 of the token is stored: the plaintext is shown to the
+    operator once, at issue, and is unrecoverable after."""
+
+    __tablename__ = "agent_tokens"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    token_sha256: Mapped[str] = mapped_column(String(64), unique=True)
+    host: Mapped[str] = mapped_column(String(255))
+    created_by: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consumed_by_agent: Mapped[str | None] = mapped_column(String(36))
+
+
+class Agent(Base):
+    """An enrolled host agent. `id` is issued by the backend; evidence is
+    attributed to it, never to an operator-typed hostname (ARCH.md §3a)."""
+
+    __tablename__ = "agents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    host: Mapped[str] = mapped_column(String(255))
+    os: Mapped[str] = mapped_column(String(64))
+    enrolled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    credential_fingerprint: Mapped[str] = mapped_column(String(64))
+    credential_pem: Mapped[str] = mapped_column(Text)
+    credential_expires: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(16), index=True)
+    """`active` or `revoked`."""
+
+
+class AgentRun(Base):
+    """One unit of work for an agent: the host-mode analogue of a collector run.
+    `queued` -> `dispatched` (the agent polled it) -> `complete`/`failed`."""
+
+    __tablename__ = "agent_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"), index=True)
+    scan_run_id: Mapped[str | None] = mapped_column(ForeignKey("scan_runs.id"))
+    scan_spec_json: Mapped[dict[str, Any]] = mapped_column(Json)
+    status: Mapped[str] = mapped_column(String(16), index=True)
+    queued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    started: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    exit_code: Mapped[int | None] = mapped_column(Integer)
+    partial: Mapped[bool] = mapped_column(Boolean, default=False)
+    detail: Mapped[str | None] = mapped_column(Text)
