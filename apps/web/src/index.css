@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+}
+
+/* I8: an unclassified asset is a coverage failure and must never look safe.
+   Grey with diagonal hatching - distinct from every risk colour and from green. */
+.hatched {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(148, 163, 184, 0.25) 0,
+    rgba(148, 163, 184, 0.25) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}

@@ -333,6 +333,7 @@ def test_simulating_the_unchanged_policy_changes_nothing(client: TestClient) -> 
     sid = _scan(client)
     body = client.post("/api/v1/policy/simulate", json={"scan_id": sid}).json()
     assert body["changed"] == 0 and body["bands"]["baseline"] == body["bands"]["candidate"]
+    assert body["top_movers"] == []  # rounding noise must not be reported as movement
     assert body["candidate_policy_snapshot_id"] == body["baseline_policy_snapshot_id"]
 
 
@@ -373,6 +374,43 @@ def test_an_unknown_scan_or_scenario_is_a_clean_error(client: TestClient) -> Non
     assert (
         client.post(
             "/api/v1/policy/simulate", json={"scan_id": sid, "z_scenario": "hopeful"}
+        ).status_code
+        == 422
+    )
+
+
+def test_scans_are_listed_newest_first_with_their_status(client: TestClient) -> None:
+    a = _scan(client)
+    listed = client.get("/api/v1/scans").json()
+    assert [s["id"] for s in listed] == [a]
+    assert listed[0]["status"] == "complete" and listed[0]["assets"] == 27
+
+
+def test_the_z_slider_can_override_a_scenarios_crqc_year_and_it_moves_assets(
+    client: TestClient,
+) -> None:
+    sid = _scan(client)
+    later = client.post(
+        "/api/v1/policy/simulate",
+        json={"scan_id": sid, "overrides": {"z_scenarios.scenarios.nominal#crqc_year": 2045}},
+    ).json()
+    sooner = client.post(
+        "/api/v1/policy/simulate",
+        json={"scan_id": sid, "overrides": {"z_scenarios.scenarios.nominal#crqc_year": 2028}},
+    ).json()
+    late = lambda r: r["bands"]["candidate"].get("overdue", 0)  # noqa: E731
+    assert late(sooner) >= late(later)
+    assert sooner["candidate_policy_snapshot_id"] != later["candidate_policy_snapshot_id"]
+
+
+@pytest.mark.parametrize(
+    "target", ["z_scenarios.scenarios.nominal#nope", "z_scenarios.scenarios.nope#crqc_year"]
+)
+def test_a_bad_field_override_is_refused(client: TestClient, target: str) -> None:
+    sid = _scan(client)
+    assert (
+        client.post(
+            "/api/v1/policy/simulate", json={"scan_id": sid, "overrides": {target: 2040}}
         ).status_code
         == 422
     )

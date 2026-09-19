@@ -38,12 +38,19 @@ HEURISTIC_NOTICE = (
 
 
 def apply_overrides(base: PolicySnapshot, overrides: dict[str, Any]) -> PolicySnapshot:
+    """`path` overrides a node's `value`; `path#field` overrides another field of
+    the node (e.g. `z_scenarios.scenarios.nominal#crqc_year`, which is what the
+    Mosca explorer's Z slider sets). Both are validated: the path must exist, it
+    must be a node (not a container), the field must already exist, and the new
+    value must have the old value's type."""
     documents = copy.deepcopy(dict(base.documents))
-    for path, new_value in overrides.items():
+    for target, new_value in overrides.items():
+        path, _, field = target.partition("#")
+        field = field or "value"
         node = base.node(path)  # raises PolicyError for a missing path / a container
-        if "value" not in node.fields:
-            raise PolicyError(f"{path!r} has no `value` to override")
-        old = node.fields["value"]
+        if field not in node.fields:
+            raise PolicyError(f"{path!r} has no `{field}` to override")
+        old = node.fields[field]
         numeric = (int, float)
         if isinstance(old, bool) or isinstance(new_value, bool):
             ok = isinstance(old, bool) and isinstance(new_value, bool)
@@ -53,12 +60,12 @@ def apply_overrides(base: PolicySnapshot, overrides: dict[str, Any]) -> PolicySn
             ok = isinstance(new_value, type(old))
         if not ok:
             raise PolicyError(
-                f"{path!r}: expected a {type(old).__name__}, got {type(new_value).__name__}"
+                f"{target!r}: expected a {type(old).__name__}, got {type(new_value).__name__}"
             )
         cursor: Any = documents
         for part in path.split("."):
             cursor = cursor[part]
-        cursor["value"] = new_value
+        cursor[field] = new_value
     return PolicySnapshot.from_documents(documents)
 
 
@@ -135,7 +142,12 @@ def simulate(
                 changed += 1
                 transitions[f"{old_band} -> {result.band.value}"] += 1
             new_gap = result.mosca.gap_years if result.mosca else None
-            if old_gap is not None and new_gap is not None and old_gap != new_gap:
+            # stored gaps are rounded to 6 dp (register_entry); compare like with like
+            if (
+                old_gap is not None
+                and new_gap is not None
+                and round(old_gap, 6) != round(new_gap, 6)
+            ):
                 movers.append(
                     (
                         abs(new_gap - old_gap),

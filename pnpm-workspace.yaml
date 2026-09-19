@@ -1,2 +1,7 @@
 packages:
   - "apps/web"
+# pnpm 12 blocks dependency build scripts by default. These two run a postinstall
+# that selects the platform binary (esbuild for Vite, Biome for lint/format).
+allowBuilds:
+  "@biomejs/biome": true
+  esbuild: true

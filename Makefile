@@ -15,10 +15,11 @@ sync: ## Install the whole Python workspace + JS workspace into local envs.
 dev: ## postgres + redis + minio (--wait for health), then API :8000 and web :5173
 	$(COMPOSE) up -d --wait postgres redis minio
 	@echo "postgres/redis/minio are up and healthy."
-	@if [ -f apps/api/src/qavach_api/main.py ]; then echo "TODO: start API :8000 (T-073)."; \
-	else echo "API not yet implemented — see TASK.md T-073."; fi
-	@if [ -f apps/web/package.json ]; then echo "TODO: start web :5173 (T-100)."; \
-	else echo "web not yet scaffolded — see TASK.md T-100."; fi
+	@echo "API :8000 and web :5173 — Ctrl-C stops both."
+	@trap 'kill 0' INT TERM EXIT; \
+	uv run uvicorn qavach_api.main:app --port 8000 & \
+	pnpm --filter web dev --port 5173 & \
+	wait
 
 dev-down: ## Stop and remove the dev infrastructure containers.
 	$(COMPOSE) down

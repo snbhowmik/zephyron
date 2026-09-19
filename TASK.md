@@ -207,18 +207,18 @@ console commands.
 
 | | ID | Task | Blocked by |
 |---|---|---|---|
-| ☐ | T-100 ★ | Vite + React + TS + Tailwind + shadcn/ui shell; TanStack Query; typed API client generated from the OpenAPI schema. | T-073 |
+| ◐ | T-100 ★ | **(partial: API types are hand-written in `src/api/types.ts`, not generated; `gen:api` script exists but is unused)** Vite + React + TS + Tailwind + shadcn/ui shell; TanStack Query; typed API client generated from the OpenAPI schema. | T-073 |
 | ☐ | T-101 ★ | New-scan flow: **target-type selector** (FR-601 — Repository, Container Image, Network/TLS Endpoint, Directory Service, Cloud Account, Host, External upload), then target entry, systems CSV upload, collector selection, live WebSocket progress. Selecting Host routes to T-101a. | T-100, T-074 |
 | ☐ | T-101a ★ | **Agent enrollment flow (sensor management, FR-133)**: generate a single-use token, show install instructions, list every enrolled agent's identity/host/online-offline status/per-run history. | T-101, T-073a |
-| ☐ | T-102 ★ | Posture dashboard: counts by finding class, systems by CARAF outcome, the binding deadline banner, count of assets that miss it. | T-100 |
-| ☐ | T-103 ★ | Inventory table: virtualised, faceted by class, function, algorithm, system, criticality, confidence, disputed. | T-100 |
-| ☐ | T-104 ★ | Asset detail: every occurrence with locus and provenance; full risk computation with inputs visible; recommendation with citations. **The reconciliation view — one asset, N occurrences, N tools — is the single most important screen in the product. Make it obvious at a glance.** | T-103, T-067 |
-| ☐ | T-105 ★ | **Mosca explorer**: `Z` slider + scenario selector, live re-sort via `/policy/simulate`, banner naming which constraint bound. | T-075 |
-| ☐ | T-106 ★ | Roadmap view: Cytoscape.js + dagre DAG, waves as a timeline, hybrid-bridge cycles highlighted distinctly. | T-085, T-086 |
-| ☐ | T-107 ★ | Finding-class visual language: `GROVER_AFFECTED` must **never** render in the same colour or severity band as `QUANTUM_VULNERABLE`. `CLASSICAL_WEAK` gets its own treatment with "urgent — but not a quantum issue" copy. Invariant I1, in the design system. | T-102 |
-| ☐ | T-108 | Triage UI: suppress with reason and expiry; adjudicate disputes. | T-076, T-025 |
+| ☑ | T-102 ★ | Posture dashboard: counts by finding class, systems by CARAF outcome, the binding deadline banner, count of assets that miss it. | T-100 |
+| ◐ | T-103 ★ | **(partial: server-side pagination at 25/page, faceted; not virtualised)** Inventory table: virtualised, faceted by class, function, algorithm, system, criticality, confidence, disputed. | T-100 |
+| ☑ | T-104 ★ | Asset detail: every occurrence with locus and provenance; full risk computation with inputs visible; recommendation with citations. **The reconciliation view — one asset, N occurrences, N tools — is the single most important screen in the product. Make it obvious at a glance.** | T-103, T-067 |
+| ☑ | T-105 ★ | **Mosca explorer**: `Z` slider + scenario selector, live re-sort via `/policy/simulate`, banner naming which constraint bound. | T-075 |
+| ☑ | T-106 ★ | Roadmap view: Cytoscape.js + dagre DAG, waves as a timeline, hybrid-bridge cycles highlighted distinctly. | T-085, T-086 |
+| ☑ | T-107 ★ | Finding-class visual language: `GROVER_AFFECTED` must **never** render in the same colour or severity band as `QUANTUM_VULNERABLE`. `CLASSICAL_WEAK` gets its own treatment with "urgent — but not a quantum issue" copy. Invariant I1, in the design system. | T-102 |
+| ☑ | T-108 | Triage UI: suppress with reason and expiry; adjudicate disputes. | T-076, T-025 |
 | ☐ | T-109 | Scan history and drift diff. | T-103 |
-| ☐ | T-110 ★ | Unimplemented capabilities render as visible, labelled stubs. Never hidden, never fake data presented as real. | T-100 |
+| ☑ | T-110 ★ | Unimplemented capabilities render as visible, labelled stubs. Never hidden, never fake data presented as real. | T-100 |
 
 ---
 

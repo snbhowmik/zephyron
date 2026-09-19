@@ -195,6 +195,26 @@ def create_app(state: AppState) -> FastAPI:
         st.runner(job)
         return {"scan_id": scan_id, "status": "queued"}
 
+    @app.get(f"{API_PREFIX}/scans")
+    def list_scans(
+        repo: RepoDep, limit: int = Query(default=50, ge=1, le=200)
+    ) -> list[dict[str, Any]]:
+        rows = repo.s.scalars(
+            select(models.ScanRun).order_by(models.ScanRun.started.desc()).limit(limit)
+        )
+        return [
+            {
+                "id": r.id,
+                "target_ref": r.target_ref,
+                "status": r.status,
+                "started": r.started.isoformat(),
+                "finished": r.finished.isoformat() if r.finished else None,
+                "z_scenario": r.z_scenario,
+                "assets": (r.summary_json or {}).get("assets"),
+            }
+            for r in rows
+        ]
+
     @app.get(f"{API_PREFIX}/scans/{{scan_id}}")
     def get_scan(scan_id: str, repo: RepoDep) -> dict[str, Any]:
         scan = scan_or_404(repo, scan_id)
