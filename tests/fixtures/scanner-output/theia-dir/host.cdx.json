@@ -1,0 +1,232 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:77b64635-5aa8-40a0-8c2e-6e4372ffe567",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-09-20T00:07:24+05:30",
+    "tools": {
+      "services": [
+        {
+          "provider": {
+            "name": "PQCA"
+          },
+          "name": "cbomkit-theia",
+          "version": "edge",
+          "services": [
+            {
+              "name": "Certificate File Plugin"
+            },
+            {
+              "name": "Secret Detection Plugin"
+            },
+            {
+              "name": "OpenSSL Config Plugin"
+            },
+            {
+              "name": "Problematic CA Detection Plugin"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "bf9ed371-3e12-4f6f-a130-468e8867024a",
+      "type": "cryptographic-asset",
+      "name": "RSA",
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "etc/ssl/server.pem"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "cryptoFunctions": [
+            "sign"
+          ]
+        },
+        "oid": "1.2.840.113549.1.1.1"
+      }
+    },
+    {
+      "bom-ref": "6462b2de-919d-4497-be58-371b1d5c79d8",
+      "type": "cryptographic-asset",
+      "name": "SHA256",
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "etc/ssl/server.pem"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "256",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        }
+      }
+    },
+    {
+      "bom-ref": "bf4feeb3-8f5b-4933-a386-bc66681c8f25",
+      "type": "cryptographic-asset",
+      "name": "SHA256-RSA",
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "etc/ssl/server.pem"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "parameterSetIdentifier": "256",
+          "padding": "pkcs1v15",
+          "cryptoFunctions": [
+            "sign"
+          ]
+        },
+        "oid": "1.2.840.113549.1.1.11"
+      }
+    },
+    {
+      "bom-ref": "2f78e281-7464-4d18-a2ff-687cccf444dd",
+      "type": "cryptographic-asset",
+      "name": "RSA",
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "etc/ssl/server.pem"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "pke",
+          "cryptoFunctions": [
+            "encapsulate",
+            "decapsulate",
+            "sign"
+          ]
+        },
+        "oid": "1.2.840.113549.1.1.1"
+      }
+    },
+    {
+      "bom-ref": "41864171-f946-4b91-a672-799d0ddb6b61",
+      "type": "cryptographic-asset",
+      "name": "RSA-2048",
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "etc/ssl/server.pem"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "related-crypto-material",
+        "relatedCryptoMaterialProperties": {
+          "type": "public-key",
+          "algorithmRef": "2f78e281-7464-4d18-a2ff-687cccf444dd",
+          "value": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA+S6957kvtoRMv1G80P6lsA3aZVLfRgXdUuMeXhmm2H7lTOZQTLB4GeIRckeSE39KfJeHBWz0Y1VGDq8qmSEK609Vo2Tav8VjYZJyXGE4Bvt62wEMCpxANsg17sj7yZV8uoPbWSEwlm0z9lDyfA8PtnykPO+MrQvRjHN+bXDAjaZ7a5NhmvoCZ0OBXGs4ew/MwCO3v6DG/fKerfF2cWu7DgXnIe5bELjGtqKbS+lFB1MCwsg6TC08TGUvfNS/rCEnFhd6oZ4uH2WhRld355dnBvapqgaacrsLjhEjZxeDR0Gv6ieSyYTcPkrKvUCLB4P7KMDpVwLNGedLf8rGTxm4DwIDAQAB",
+          "size": 2048,
+          "format": "PEM"
+        },
+        "oid": "1.2.840.113549.1.1.1"
+      }
+    },
+    {
+      "bom-ref": "2701c8e9-46ab-42a1-9bb4-9b093f5e71eb",
+      "type": "cryptographic-asset",
+      "name": "fixture.local",
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "etc/ssl/server.pem"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "certificate",
+        "certificateProperties": {
+          "subjectName": "fixture.local",
+          "issuerName": "fixture.local",
+          "notValidBefore": "2026-09-19T18:37:24Z",
+          "notValidAfter": "2026-10-19T18:37:24Z",
+          "signatureAlgorithmRef": "bf4feeb3-8f5b-4933-a386-bc66681c8f25",
+          "subjectPublicKeyRef": "41864171-f946-4b91-a672-799d0ddb6b61",
+          "certificateFormat": "X.509",
+          "certificateExtension": "pem"
+        }
+      }
+    },
+    {
+      "bom-ref": "b7aaa772-1c5f-4242-ae55-bcece8f04bc3",
+      "type": "cryptographic-asset",
+      "name": "RSA-2048",
+      "description": "Identified a Private Key, which may compromise cryptographic security and sensitive data encryption.",
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "etc/ssl/server.key",
+            "line": 0
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "related-crypto-material",
+        "relatedCryptoMaterialProperties": {
+          "type": "private-key",
+          "size": 2048,
+          "format": "PEM"
+        },
+        "oid": "1.2.840.113549.1.1.1"
+      }
+    },
+    {
+      "bom-ref": "45cd1565-caca-4864-83a1-93be52ce5fd9",
+      "type": "file",
+      "name": "openssl.cnf",
+      "description": "OpenSSL configuration",
+      "properties": [
+        {
+          "name": "theia:openssl:MinProtocol",
+          "value": "TLSv1.0"
+        },
+        {
+          "name": "theia:openssl:CipherString",
+          "value": "DEFAULT:@SECLEVEL=0"
+        }
+      ],
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "etc/ssl/openssl.cnf"
+          }
+        ]
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "bf4feeb3-8f5b-4933-a386-bc66681c8f25",
+      "dependsOn": [
+        "bf9ed371-3e12-4f6f-a130-468e8867024a",
+        "6462b2de-919d-4497-be58-371b1d5c79d8"
+      ]
+    }
+  ]
+}

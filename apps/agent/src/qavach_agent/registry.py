@@ -26,6 +26,7 @@ the bundle, then next to the executable, then `PATH`.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import sys
@@ -40,6 +41,7 @@ from qavach_collectors.hsm import HsmEvidenceCollector, load_vendor_table
 from qavach_collectors.sbom import CryptoLibraryMapping
 from qavach_collectors.ssh import SshdConfigCollector
 from qavach_collectors.tls import TlsStoreCollector
+from qavach_core.normalize import AliasTable, CryptographyRegistry
 
 from qavach_agent.spec import AGENT_COLLECTOR_NAMES
 
@@ -115,6 +117,24 @@ def build_registry(
     if certfinder is None:
         result.skipped["tls.store"] = "the certfinder binary was not found"
     else:
-        register(TlsStoreCollector(certfinder_binary=certfinder))
+        # Theia is additive (T-036c): without it tls.store still runs, with
+        # certfinder alone. Its CBOM needs the registry to be normalised.
+        theia = locate_binary("cbomkit-theia", env)
+        registry = aliases = None
+        if theia is not None:
+            registry = CryptographyRegistry.from_dict(
+                json.loads(
+                    (knowledge / "cdx-crypto-registry" / "cryptography-defs.json").read_text()
+                )
+            )
+            aliases = AliasTable.from_dict(_load_yaml(knowledge / "aliases.yaml"))
+        register(
+            TlsStoreCollector(
+                certfinder_binary=certfinder,
+                theia_binary=theia,
+                registry=registry,
+                aliases=aliases,
+            )
+        )
 
     return result

@@ -33,6 +33,26 @@ container_images:
       Also invoked agent-side via its `dir` command for tls.store
       (ARCH.md §2.2, §3a) — same image, same digest, different invocation.
 
+# --- Agent-side companion binary built from source (T-036c) ---
+agent_built_binaries:
+  tls.store.theia:
+    upstream: cbomkit/cbomkit-theia
+    upstream_licence: Apache-2.0
+    tag: v1.1.2
+    commit: dcd95ac86d1cbe6e867ff3ee059b9ef77bac6a59
+    dockerfile: docker/theia-build/Dockerfile
+    build_command: make build-theia
+    targets: [linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64]
+    builder_image: golang@sha256:ef46d02b02ed68aa94b6a49ba5d3ec62003b8d5ce4b7497fe83e056f2e8fd378
+    reproducible: true   # identical SHA256SUMS on a --no-cache rebuild, 2026-09-19
+    linux_amd64_sha256: 9c58d22b343dfb814adb03c1ed863acb17ab9eb15bb004d31b5cd649680e381e
+    note: >
+      No upstream binary releases exist. Built with TLS verification and the
+      Go checksum DB ON (upstream's own Dockerfile disables both).
+      Only linux/amd64 was executed here; the other four are cross-compiled
+      and unexecuted.
+    verified_on: 2026-09-19
+
 # --- QAVACH-built wrapper images: no suitable upstream image exists, so we
 # build and pin our own. Not yet built — each references the task that
 # builds it. Do NOT invent a digest for these; leave them unset until the

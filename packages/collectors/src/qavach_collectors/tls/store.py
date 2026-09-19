@@ -36,10 +36,12 @@ from __future__ import annotations
 
 import json
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
 from qavach_core.model import ConfidenceTier, FileLocus
+from qavach_core.normalize import AliasTable, CryptographyRegistry, normalise_bom
 
 from qavach_collectors.base import (
     CollectorError,
@@ -51,6 +53,8 @@ from qavach_collectors.base import (
     TargetType,
     ToolIdentity,
 )
+from qavach_collectors.cbom_claims import normalised_to_raw_claims
+from qavach_collectors.tls.theia_dir import TheiaDirError, run_theia_dir
 
 _PROBE_TIMEOUT_SECONDS = 120.0
 
@@ -195,8 +199,21 @@ class TlsStoreCollector:
     sandbox`; the agent's own host-boundary is the containment."""
     requires_network = False
 
-    def __init__(self, *, certfinder_binary: Path) -> None:
+    def __init__(
+        self,
+        *,
+        certfinder_binary: Path,
+        theia_binary: Path | None = None,
+        registry: CryptographyRegistry | None = None,
+        aliases: AliasTable | None = None,
+    ) -> None:
+        """Theia (T-036c) runs only if its binary *and* the registry/aliases
+        needed to normalise its CBOM are supplied; otherwise this is the
+        certfinder-only collector it was before."""
         self._certfinder_binary = certfinder_binary
+        self._theia_binary = theia_binary
+        self._registry = registry
+        self._aliases = aliases
 
     def supports(self, target: Target) -> bool:
         return target.type is TargetType.HOST
@@ -233,14 +250,54 @@ class TlsStoreCollector:
             for entry in undecryptable
         ]
 
+        errors: list[CollectorError] = []
+        theia_document: dict[str, Any] | None = None
+        if self._theia_binary is not None and self._registry and self._aliases:
+            try:
+                theia_document = run_theia_dir(self._theia_binary, target_dir)
+                claims += _theia_claims(
+                    theia_document,
+                    target_dir,
+                    registry=self._registry,
+                    aliases=self._aliases,
+                    confidence=self.default_confidence,
+                )
+            except (TheiaDirError, ValueError) as exc:
+                errors.append(CollectorError(message=f"theia dir: {exc}", fatal=False))
+
         return CollectorResult(
-            raw=json.dumps(records).encode(),
+            raw=json.dumps({"certfinder": records, "theia": theia_document}).encode(),
             raw_format=RawFormat.QAVACH_NATIVE,
             claims=claims,
             tool=tool,
-            errors=[],
-            partial=False,
+            errors=errors,
+            partial=bool(errors),
         )
+
+
+def _theia_claims(
+    document: dict[str, Any],
+    target_dir: Path,
+    *,
+    registry: CryptographyRegistry,
+    aliases: AliasTable,
+    confidence: ConfidenceTier,
+) -> list[RawClaim]:
+    """Theia reports paths relative to the scanned directory; certfinder
+    reports absolute ones. Joined here so both tools' findings for one file
+    are the same locus and can corroborate each other."""
+    out: list[RawClaim] = []
+    ref = Target(type=TargetType.HOST, ref=str(target_dir))
+    for item in normalise_bom(document, registry=registry, aliases=aliases):
+        for claim in normalised_to_raw_claims(item, target=ref, confidence=confidence):
+            locus = claim.locus
+            if isinstance(locus, FileLocus) and not Path(locus.path).is_absolute():
+                claim = replace(
+                    claim,
+                    locus=FileLocus(path=str(target_dir / locus.path), offset=locus.offset),
+                )
+            out.append(claim)
+    return out
 
 
 def _certificate_claims(

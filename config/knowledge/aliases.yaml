@@ -124,6 +124,8 @@ names:
   des: { family: DES }
   aes: { family: AES }
   sha-256: { family: SHA-2, parameter_set: "256" }
+  # theia's spelling for the SHA-256 digest in a certificate signature
+  SHA256: { family: SHA-2, parameter_set: "256" }
   # cbomkit's name for Cipher.getInstance("DES/ECB/...") — 56 is DES's key size.
   DES-56-ECB: { family: DES, parameter_set: "56" }
   Ed25519ph: { family: EdDSA }

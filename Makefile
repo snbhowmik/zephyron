@@ -1,4 +1,4 @@
-.PHONY: build-images dev dev-down dev-logs test test-unit lint fmt schema-check scanners-pull demo sync
+.PHONY: build-theia build-images dev dev-down dev-logs test test-unit lint fmt schema-check scanners-pull demo sync
 
 # CLAUDE.md §5. Targets below are real where the underlying task has landed;
 # where it hasn't, the target says so explicitly and names the blocking task
@@ -73,3 +73,8 @@ build-images: ## build QAVACH-owned scanner images and print their content-addre
 	@echo "opengrep image ID: $$($(ENGINE) image inspect --format '{{.Id}}' qavach/opengrep:dev)"
 	$(ENGINE) build -t qavach/tracebom:dev docker/tracebom
 	@echo "tracebom image ID: $$($(ENGINE) image inspect --format '{{.Id}}' qavach/tracebom:dev)"
+
+build-theia: ## cross-compile CBOMkit-theia from pinned source for the agent (5 OS/arch targets -> dist/theia)
+	rm -rf dist/theia
+	DOCKER_BUILDKIT=1 $(ENGINE) build --target artifacts --output type=local,dest=dist/theia docker/theia-build
+	@cat dist/theia/SHA256SUMS
