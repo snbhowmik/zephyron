@@ -43,7 +43,6 @@ from qavach_core.context import (
     bind_assets,
     keys_for_locus,
     parse_systems_csv,
-    system_dependency_edges,
 )
 from qavach_core.export import (
     RegisterInput,
@@ -51,9 +50,7 @@ from qavach_core.export import (
     build_register,
     build_sarif,
     cbom_violations,
-    unit_id,
 )
-from qavach_core.model.enums import MigrationAuthority
 from qavach_core.normalize import AliasTable, CryptographyRegistry
 from qavach_core.pipeline import (
     AssembleKnowledge,
@@ -61,11 +58,11 @@ from qavach_core.pipeline import (
     FamilyFunctions,
     also_quantum_vulnerable_of,
     assemble,
+    plan_roadmap,
 )
 from qavach_core.policy import PolicySnapshot
 from qavach_core.recommend import Constraints, PqcKnowledge, recommend
 from qavach_core.risk import AssetRiskInput, ClassificationRules, score_asset
-from qavach_core.roadmap import Edge, EdgeKind, MigrationUnit, build_roadmap
 from qavach_sandbox import SandboxResult
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -109,8 +106,9 @@ def load_knowledge() -> tuple[AssembleKnowledge, PolicySnapshot, PqcKnowledge]:
     return knowledge, policy, pqc
 
 
-def replay_corpus(knowledge: AssembleKnowledge) -> list[ClaimInput]:
-    """Runs each real collector's *parser* over its recorded real output."""
+def replay_results(knowledge: AssembleKnowledge) -> list[Any]:
+    """Each real collector's *parser* run over its recorded real output, as
+    `CollectorResult`s."""
     libraries = CryptoLibraryMapping.from_entries(
         _yaml("config/knowledge/crypto_libraries.yaml")["libraries"]
     )
@@ -139,7 +137,7 @@ def replay_corpus(knowledge: AssembleKnowledge) -> list[ClaimInput]:
             "tracebom/python-ssl.cdx.json",
         ),
     ]
-    claims: list[ClaimInput] = []
+    results = []
     for module, collector, filename in plan:
         recorded = (CORPUS / filename).read_bytes()
         with mock.patch.object(
@@ -147,7 +145,13 @@ def replay_corpus(knowledge: AssembleKnowledge) -> list[ClaimInput]:
             "run_sandboxed",
             lambda _c, data=recorded: SandboxResult(0, data, b"", 1.0, False),
         ):
-            result = collector.collect(target, RunContext(scan_run_id="demo"))
+            results.append(collector.collect(target, RunContext(scan_run_id="demo")))
+    return results
+
+
+def replay_corpus(knowledge: AssembleKnowledge) -> list[ClaimInput]:
+    claims: list[ClaimInput] = []
+    for result in replay_results(knowledge):
         for raw in result.claims:
             claims.append(
                 ClaimInput(
@@ -162,7 +166,7 @@ def replay_corpus(knowledge: AssembleKnowledge) -> list[ClaimInput]:
                     tool_version=result.tool.version,
                     confidence=raw.confidence,
                     detection_method=raw.detection_method,
-                    raw_ref=f"{result.tool.name}:{filename}",
+                    raw_ref=f"{result.tool.name}:recorded",
                     observed_at=NOW,
                 )
             )
@@ -192,7 +196,6 @@ def build_demo(out: Path | None = None) -> dict[str, Any]:
     )
 
     items: list[RegisterInput] = []
-    units: dict[str, dict[str, Any]] = {}
     for asset in assets:
         system_ids = binding.systems_for(asset.identity) or (None,)
         for system_id in system_ids:
@@ -221,53 +224,10 @@ def build_demo(out: Path | None = None) -> dict[str, Any]:
                 ),
             )
             items.append(RegisterInput(asset=asset, score=score, recommendation=rec))
-            if (
-                system
-                and score.outcome
-                and score.y
-                and score.z
-                and asset.migration_authority is MigrationAuthority.SELF
-            ):
-                uid = unit_id(system.id, asset.function)
-                u = units.setdefault(
-                    uid,
-                    {
-                        "system": system.id,
-                        "function": asset.function,
-                        "y": 0.0,
-                        "deadline": score.z.z_date,
-                        "bound": score.z.bound_by,
-                        "gap": None,
-                    },
-                )
-                u["y"] = max(u["y"], score.y.years)
-                if score.mosca and score.mosca.gap_years is not None:
-                    u["gap"] = (
-                        max(u["gap"], score.mosca.gap_years)
-                        if u["gap"] is not None
-                        else score.mosca.gap_years
-                    )
 
-    migration_units = [
-        MigrationUnit(
-            id=uid,
-            system_id=u["system"],
-            function=u["function"],
-            authority=MigrationAuthority.SELF,
-            y_years=u["y"],
-            deadline=u["deadline"],
-            deadline_bound_by=u["bound"],
-            urgency_gap_years=u["gap"],
-        )
-        for uid, u in sorted(units.items())
-    ]
-    edges = []
-    for dependent, dependency in system_dependency_edges(imported.systems):
-        for uid, u in units.items():
-            counterpart = unit_id(dependency, u["function"]) if u["system"] == dependent else None
-            if counterpart and counterpart in units:
-                edges.append(Edge(counterpart, uid, EdgeKind.PROTOCOL_PEER))
-    roadmap = build_roadmap(migration_units, edges, as_of=AS_OF, capacity_per_quarter=4)
+    roadmap, _units, _edges = plan_roadmap(
+        items, imported.systems, as_of=AS_OF, capacity_per_quarter=4
+    )
 
     from schema_check import (  # type: ignore[import-not-found]
         cbom_validator,

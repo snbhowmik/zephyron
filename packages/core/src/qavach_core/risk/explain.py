@@ -60,3 +60,9 @@ def refs(cited: Iterable[Cited]) -> tuple[PolicyRef, ...]:
     happened to consult policy never changes the bytes."""
     unique = {c.path: PolicyRef.of(c) for c in cited}
     return tuple(unique[path] for path in sorted(unique))
+
+
+NO_EXPLANATION = Explanation(name="", formula="", inputs={}, policy=())
+"""Returned instead of a real explanation on the fast path (`explain=False`), so
+`policy/simulate` does not pay to build prose it will never show. The numbers
+come from the same code path either way; only the explanation is skipped."""

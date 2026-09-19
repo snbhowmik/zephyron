@@ -15,7 +15,13 @@ from qavach_core.risk.classify import (
 from qavach_core.risk.effort import EffortFacts, MigrationEstimate, estimate_y, locus_kind
 from qavach_core.risk.explain import Explanation, PolicyRef
 from qavach_core.risk.mosca import MoscaResult, UrgencyBand, evaluate_mosca
-from qavach_core.risk.score import AssetRiskInput, AssetRiskScore, score_asset, score_estate
+from qavach_core.risk.score import (
+    AssetRiskInput,
+    AssetRiskScore,
+    ScoreMemo,
+    score_asset,
+    score_estate,
+)
 from qavach_core.risk.shelf_life import ShelfLife, derive_from_consumers, shelf_life_years
 from qavach_core.risk.zeff import DeadlineConsidered, ZEffective, z_effective
 
@@ -34,6 +40,7 @@ __all__ = [
     "MoscaResult",
     "Outcome",
     "PolicyRef",
+    "ScoreMemo",
     "ShelfLife",
     "UrgencyBand",
     "ZEffective",

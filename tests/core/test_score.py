@@ -201,3 +201,50 @@ def test_fifty_thousand_assets_score_well_inside_the_sixty_second_budget() -> No
 def test_a_file_locus_only_asset_scores() -> None:
     s = score_asset(_asset(loci=(FileLocus(path="/etc/x", offset=0),)), policy=POLICY, as_of=AS_OF)
     assert s.y is not None and s.y.base_locus_kind == "file"
+
+
+# ---- the fast path (`policy/simulate`) must agree with the full path ----
+
+
+def test_the_fast_path_gives_the_same_numbers_bands_and_outcomes_as_the_full_path() -> None:
+    """`explain=False` skips only prose. If the two paths ever diverge, the Mosca
+    explorer would show numbers the report does not - the failure this guards."""
+    from qavach_core.risk import ScoreMemo
+
+    estate = _mixed_estate(6000)
+    full = score_estate(estate, policy=POLICY, as_of=AS_OF, explain=True)
+    fast = score_estate(estate, policy=POLICY, as_of=AS_OF, explain=False)
+    unmemoised = [score_asset(a, policy=POLICY, as_of=AS_OF, explain=False) for a in estate]
+    assert ScoreMemo  # exported
+    for f, q, u in zip(full, fast, unmemoised, strict=True):
+        for other in (q, u):
+            assert (f.band, f.outcome, f.reason, f.system_id) == (
+                other.band,
+                other.outcome,
+                other.reason,
+                other.system_id,
+            )
+            assert (f.mosca.gap_years if f.mosca else None) == (
+                other.mosca.gap_years if other.mosca else None
+            )
+            assert (f.ev.ev if f.ev else None) == (other.ev.ev if other.ev else None)
+            assert (f.y.years if f.y else None) == (other.y.years if other.y else None)
+            assert (f.z.z_date if f.z else None) == (other.z.z_date if other.z else None)
+
+
+def test_the_fast_path_builds_no_explanations() -> None:
+    fast = score_asset(_asset(), policy=POLICY, as_of=AS_OF, explain=False)
+    assert fast.mosca is not None and fast.mosca.explanation.name == ""
+    assert fast.y is not None and fast.y.explanation.name == ""
+
+
+def test_fifty_thousand_assets_rescore_on_the_fast_path_in_about_a_second() -> None:
+    """T-075's budget: `policy/simulate` must return in under 1 s at 50k assets.
+    The ceiling here is looser (4 s) so CI noise cannot flake it; the measured
+    time is printed and recorded in NOTE.md."""
+    estate = _mixed_estate(50_000)
+    start = time.perf_counter()
+    scores = score_estate(estate, policy=POLICY, as_of=AS_OF, explain=False)
+    elapsed = time.perf_counter() - start
+    assert len(scores) == 50_000 and elapsed < 4, f"{elapsed:.2f}s"
+    print(f"\n50k assets re-scored (fast path) in {elapsed:.2f}s")  # noqa: T201

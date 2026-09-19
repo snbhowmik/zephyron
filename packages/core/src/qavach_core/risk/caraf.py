@@ -31,7 +31,7 @@ from enum import StrEnum
 from qavach_core.model.enums import FindingClass, MigrationAuthority
 from qavach_core.model.system import System
 from qavach_core.policy import Cited, PolicySnapshot
-from qavach_core.risk.explain import Explanation, refs
+from qavach_core.risk.explain import NO_EXPLANATION, Explanation, refs
 from qavach_core.risk.mosca import MoscaResult, UrgencyBand
 
 
@@ -53,7 +53,7 @@ class ExpectedValue:
 
 
 def expected_value(
-    *, system: System, gap_years: float | None, policy: PolicySnapshot
+    *, system: System, gap_years: float | None, policy: PolicySnapshot, explain: bool = True
 ) -> ExpectedValue:
     """`gap_years is None` (no Mosca gap - classical/Grover/safe assets) gives a
     neutral gap factor of 1.0: the value of the *system* still matters, the
@@ -81,6 +81,8 @@ def expected_value(
         gap_step = (
             f"gap factor = clamp(1 + {gap_years:.3f}/{scale_node.value}, "
             f"{min_node.value}, {max_node.value}) = {gap_factor:.3f}"
+            if explain
+            else ""
         )
     exposure_label = "internet-facing" if system.internet_facing else "internal"
     ev = system.criticality * sensitivity * exposure * gap_factor
@@ -90,24 +92,28 @@ def expected_value(
         sensitivity=sensitivity,
         exposure=exposure,
         gap_factor=gap_factor,
-        explanation=Explanation(
-            name="caraf_d3_expected_value",
-            formula="EV = criticality x sensitivity x exposure x mosca_gap_factor",
-            inputs={
-                "criticality": system.criticality,
-                "data_classification": system.data_classification.value,
-                "internet_facing": system.internet_facing,
-                "gap_years": gap_years,
-            },
-            policy=refs(used),
-            steps=(
-                f"sensitivity {sensitivity} ({system.data_classification.value})",
-                f"exposure {exposure} ({exposure_label})",
-                gap_step,
-                f"EV = {system.criticality} x {sensitivity} x {exposure} x "
-                f"{gap_factor:.3f} = {ev:.3f}",
-            ),
-            heuristic=True,
+        explanation=(
+            Explanation(
+                name="caraf_d3_expected_value",
+                formula="EV = criticality x sensitivity x exposure x mosca_gap_factor",
+                inputs={
+                    "criticality": system.criticality,
+                    "data_classification": system.data_classification.value,
+                    "internet_facing": system.internet_facing,
+                    "gap_years": gap_years,
+                },
+                policy=refs(used),
+                steps=(
+                    f"sensitivity {sensitivity} ({system.data_classification.value})",
+                    f"exposure {exposure} ({exposure_label})",
+                    gap_step,
+                    f"EV = {system.criticality} x {sensitivity} x {exposure} x "
+                    f"{gap_factor:.3f} = {ev:.3f}",
+                ),
+                heuristic=True,
+            )
+            if explain
+            else NO_EXPLANATION
         ),
     )
 
@@ -130,6 +136,7 @@ def decide(
     y_years: float,
     criticality: int,
     policy: PolicySnapshot,
+    explain: bool = True,
 ) -> Decision:
     accept_node = policy.node("risk_tolerance.accept_below_ev")
     blocked_node = policy.node("risk_tolerance.blocked_migration_min_y_years")
@@ -146,6 +153,8 @@ def decide(
     }
 
     def out(outcome: Outcome | None, reason: str) -> Decision:
+        if not explain:
+            return Decision(outcome, reason, NO_EXPLANATION)
         return Decision(
             outcome,
             reason,

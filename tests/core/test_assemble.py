@@ -246,3 +246,50 @@ def test_scale_smoke(n: int) -> None:
     assert (
         len(assemble([claim("AES", parameter_set="256", line=i) for i in range(n)], K).assets) == 1
     )
+
+
+def test_a_stored_adjudication_is_applied_reported_and_the_dispute_resolved() -> None:
+    """The assembler must hand back what happened to each ruling (it once
+    computed the outcome and dropped it on the floor)."""
+    from qavach_core.reconcile import OccurrenceClaim, adjudicate, merge_all
+
+    claims = [
+        claim(
+            "AES", parameter_set="256", collector="ast-tool", mode="gcm", tier=ConfidenceTier.AST
+        ),
+        claim(
+            "AES",
+            parameter_set="256",
+            collector="pattern-tool",
+            mode="cbc",
+            tier=ConfidenceTier.PATTERN,
+        ),
+    ]
+    first = assemble(claims, K)
+    assert first.adjudications is None and first.assets[0].disputed
+    identity = first.assets[0].identity
+    locus = FileLocus(path="a.py", offset=1)
+    dispute_claims = [
+        OccurrenceClaim(
+            identity=identity,
+            locus=locus,
+            collector=c,
+            tool_version="1",
+            confidence=t,
+            detection_method="x",
+            raw_ref="r",
+            observed_at=NOW,
+            mode=m,
+        )
+        for c, t, m in (("a", ConfidenceTier.AST, "gcm"), ("b", ConfidenceTier.PATTERN, "cbc"))
+    ]
+    ruling = adjudicate(
+        merge_all(dispute_claims)[0], "mode", "gcm", by="ops", at=NOW, reason="read it"
+    )
+    second = assemble(claims, K, adjudications=[ruling])
+    assert second.adjudications is not None and second.adjudications.applied == (ruling,)
+    resolved = second.assets[0]
+    assert not resolved.disputed and resolved.mode == "gcm"
+    assert all(d.resolved for d in resolved.disputes) and {
+        c.value for d in resolved.disputes for c in d.claims
+    } == {"gcm", "cbc"}

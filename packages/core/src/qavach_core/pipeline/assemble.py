@@ -47,6 +47,7 @@ from qavach_core.normalize.resolve import (
     resolve_algorithm,
     resolve_curve,
 )
+from qavach_core.reconcile.adjudicate import Adjudication, AdjudicationOutcome, apply_adjudications
 from qavach_core.reconcile.authority import AuthorityContext, derive_migration_authority
 from qavach_core.reconcile.identity import IdentityClaim, asset_identity
 from qavach_core.reconcile.merge import MergeResult, OccurrenceClaim, merge
@@ -113,6 +114,10 @@ class AssembleResult:
     unresolved: tuple[str, ...]
     """Raw names that did not resolve to a family - already present in `assets`
     as `UNKNOWN`; listed here so a UI can show *what* was not understood."""
+    adjudications: AdjudicationOutcome | None = None
+    """What happened to each stored operator ruling on this re-merge: applied,
+    reopened (new evidence / the code changed), orphaned or superseded - never
+    silently applied or dropped (T-025)."""
 
 
 AuthorityFor = Callable[[AssetIdentity, Sequence[Locus]], AuthorityContext]
@@ -186,35 +191,47 @@ def assemble(
     knowledge: AssembleKnowledge,
     *,
     authority_for: AuthorityFor = _default_authority,
+    adjudications: Sequence[Adjudication] = (),
 ) -> AssembleResult:
     prepared = [_prepare(c, knowledge) for c in claims]
     by_identity: dict[AssetIdentity, list[_Prepared]] = defaultdict(list)
     for p in prepared:
         by_identity[p.identity].append(p)
 
+    ordered_identities = sorted(by_identity, key=lambda i: (i.kind.value, i.key))
+    raw_merges: list[MergeResult] = []
+    for identity in ordered_identities:
+        group = by_identity[identity]
+        raw_merges.append(
+            merge(
+                identity,
+                [
+                    OccurrenceClaim(
+                        identity=identity,
+                        locus=p.claim.locus,
+                        collector=p.claim.collector,
+                        tool_version=p.claim.tool_version,
+                        confidence=p.claim.confidence,
+                        detection_method=p.claim.detection_method,
+                        raw_ref=p.claim.raw_ref,
+                        observed_at=p.claim.observed_at,
+                        mode=p.claim.mode,
+                        padding=p.claim.padding,
+                    )
+                    for p in group
+                ],
+            )
+        )
+    outcome = apply_adjudications(raw_merges, adjudications) if adjudications else None
+    final_merges = list(outcome.results) if outcome else raw_merges
+
     merges: dict[AssetIdentity, MergeResult] = {}
     assets: list[CryptoAsset] = []
     unresolved: set[str] = set()
 
-    for identity in sorted(by_identity, key=lambda i: (i.kind.value, i.key)):
+    for identity, merged in zip(ordered_identities, final_merges, strict=True):
         group = by_identity[identity]
         head = group[0]
-        occurrence_claims = [
-            OccurrenceClaim(
-                identity=identity,
-                locus=p.claim.locus,
-                collector=p.claim.collector,
-                tool_version=p.claim.tool_version,
-                confidence=p.claim.confidence,
-                detection_method=p.claim.detection_method,
-                raw_ref=p.claim.raw_ref,
-                observed_at=p.claim.observed_at,
-                mode=p.claim.mode,
-                padding=p.claim.padding,
-            )
-            for p in group
-        ]
-        merged = merge(identity, occurrence_claims)
         merges[identity] = merged
 
         if head.resolved:
@@ -265,7 +282,12 @@ def assemble(
         )
         # `also_quantum_vulnerable` is a property of the classification, carried
         # to scoring by `also_quantum_vulnerable_of`.
-    return AssembleResult(assets=tuple(assets), merges=merges, unresolved=tuple(sorted(unresolved)))
+    return AssembleResult(
+        assets=tuple(assets),
+        merges=merges,
+        unresolved=tuple(sorted(unresolved)),
+        adjudications=outcome,
+    )
 
 
 def also_quantum_vulnerable_of(asset: CryptoAsset, knowledge: AssembleKnowledge) -> bool:

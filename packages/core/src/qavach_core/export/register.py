@@ -71,7 +71,8 @@ def plain(value: Any) -> Any:
     return value
 
 
-def _entry(item: RegisterInput, roadmap: Roadmap | None) -> dict[str, Any]:
+def register_entry(item: RegisterInput, roadmap: Roadmap | None = None) -> dict[str, Any]:
+    """One register entry: everything QAVACH concludes about one (asset, system)."""
     asset, score = item.asset, item.score
     entry: dict[str, Any] = {
         "bom_ref": bom_ref(asset.identity),
@@ -136,7 +137,44 @@ def build_register(
     roadmap: Roadmap | None = None,
 ) -> dict[str, Any]:
     ordered = sorted(items, key=lambda i: (bom_ref(i.asset.identity), i.score.system_id or ""))
-    entries = [_entry(i, roadmap) for i in ordered]
+    return assemble_register(
+        [register_entry(i, roadmap) for i in ordered],
+        roadmap_doc=roadmap_document(roadmap),
+        cbom=cbom,
+        policy_snapshot_id=policy_snapshot_id,
+        z_scenario=z_scenario,
+        as_of=as_of,
+        generated_at=generated_at,
+    )
+
+
+def roadmap_document(roadmap: Roadmap | None) -> dict[str, Any] | None:
+    if roadmap is None:
+        return None
+    return {
+        "waves": plain(roadmap.waves),
+        "bridges": plain(roadmap.bridges),
+        "vendor_dependencies": plain(roadmap.vendor_dependencies),
+        "named_blockers": plain(roadmap.named_blockers),
+        "infeasible": plain(roadmap.infeasible),
+        "excluded_trust_anchors": roadmap.excluded_trust_anchors,
+        "triage": list(roadmap.triage),
+        "notes": list(roadmap.notes),
+    }
+
+
+def assemble_register(
+    entries: list[dict[str, Any]],
+    *,
+    roadmap_doc: dict[str, Any] | None,
+    cbom: Mapping[str, Any],
+    policy_snapshot_id: str,
+    z_scenario: str,
+    as_of: date,
+    generated_at: datetime,
+) -> dict[str, Any]:
+    """The register from already-built entries: what an export does when it has
+    loaded stored scores rather than live ones. `entries` must be pre-sorted."""
     total = len(entries)
     by_class = Counter(e["finding_class"] for e in entries)
     by_band = Counter(e["band"] for e in entries)
@@ -169,16 +207,5 @@ def build_register(
             "unassigned": sum(1 for e in entries if e["system_id"] is None),
         },
         "entries": entries,
-        "roadmap": None
-        if roadmap is None
-        else {
-            "waves": plain(roadmap.waves),
-            "bridges": plain(roadmap.bridges),
-            "vendor_dependencies": plain(roadmap.vendor_dependencies),
-            "named_blockers": plain(roadmap.named_blockers),
-            "infeasible": plain(roadmap.infeasible),
-            "excluded_trust_anchors": roadmap.excluded_trust_anchors,
-            "triage": list(roadmap.triage),
-            "notes": list(roadmap.notes),
-        },
+        "roadmap": roadmap_doc,
     }

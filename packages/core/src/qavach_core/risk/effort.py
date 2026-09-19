@@ -33,7 +33,7 @@ from qavach_core.model.locus import (
     SourceLocus,
 )
 from qavach_core.policy import Cited, PolicySnapshot
-from qavach_core.risk.explain import Explanation, refs
+from qavach_core.risk.explain import NO_EXPLANATION, Explanation, refs
 
 _LOCUS_KIND: dict[type, str] = {
     SourceLocus: "source",
@@ -79,6 +79,7 @@ def estimate_y(
     occurrence_count: int,
     policy: PolicySnapshot,
     facts: EffortFacts | None = None,
+    explain: bool = True,
 ) -> MigrationEstimate:
     if not loci:
         raise ValueError("estimate_y needs at least one locus")
@@ -109,7 +110,11 @@ def estimate_y(
 
     years = base_years
     applied: list[tuple[str, float]] = []
-    steps = [f"base effort {base_years} y from the {base_kind!r} locus (max over {len(loci)} loci)"]
+    steps = (
+        [f"base effort {base_years} y from the {base_kind!r} locus (max over {len(loci)} loci)"]
+        if explain
+        else []
+    )
     for name, active in flags:
         if not active:
             continue
@@ -118,28 +123,34 @@ def estimate_y(
         factor = float(node.value)
         years *= factor
         applied.append((name, factor))
-        steps.append(f"x{factor} {name}")
+        if explain:
+            steps.append(f"x{factor} {name}")
     if not applied:
         node = policy.node("migration_effort.multipliers.pqc_library_available")
         used.append(node)
-        steps.append(f"no blocker factor known: x{node.value} (drop-in assumed)")
+        if explain:
+            steps.append(f"no blocker factor known: x{node.value} (drop-in assumed)")
 
     return MigrationEstimate(
         years=years,
         base_years=base_years,
         base_locus_kind=base_kind,
         applied=tuple(applied),
-        explanation=Explanation(
-            name="y_estimate",
-            formula="Y = base_years(locus) x product(applicable multipliers)",
-            inputs={
-                "loci": len(loci),
-                "authority": authority.value,
-                "occurrence_count": occurrence_count,
-                "known_factors": sorted(n for n, on in flags if on),
-            },
-            policy=refs(used),
-            steps=tuple(steps),
-            heuristic=True,
+        explanation=(
+            Explanation(
+                name="y_estimate",
+                formula="Y = base_years(locus) x product(applicable multipliers)",
+                inputs={
+                    "loci": len(loci),
+                    "authority": authority.value,
+                    "occurrence_count": occurrence_count,
+                    "known_factors": sorted(n for n, on in flags if on),
+                },
+                policy=refs(used),
+                steps=tuple(steps),
+                heuristic=True,
+            )
+            if explain
+            else NO_EXPLANATION
         ),
     )

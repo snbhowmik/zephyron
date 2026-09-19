@@ -32,7 +32,7 @@ from enum import StrEnum
 
 from qavach_core.model.enums import FindingClass
 from qavach_core.policy import PolicySnapshot
-from qavach_core.risk.explain import Explanation, refs
+from qavach_core.risk.explain import NO_EXPLANATION, Explanation, refs
 from qavach_core.risk.shelf_life import ShelfLife
 from qavach_core.risk.zeff import ZEffective
 
@@ -71,6 +71,7 @@ def evaluate_mosca(
     z: ZEffective,
     as_of: date,
     policy: PolicySnapshot,
+    explain: bool = True,
 ) -> MoscaResult:
     imminent_node = policy.node("scoring.mosca.imminent_within_years")
     z_years = z.years_from(as_of)
@@ -101,13 +102,17 @@ def evaluate_mosca(
             z_years=z_years,
             mitigation=mitigation,
             note=note,
-            explanation=Explanation(
-                name="mosca",
-                formula="gap = max(x_conf, x_integ) + Y - Z_effective_years; late if gap > 0",
-                inputs=inputs,
-                policy=refs([imminent_node]),
-                steps=steps,
-                heuristic=True,
+            explanation=(
+                Explanation(
+                    name="mosca",
+                    formula="gap = max(x_conf, x_integ) + Y - Z_effective_years; late if gap > 0",
+                    inputs=inputs,
+                    policy=refs([imminent_node]),
+                    steps=steps,
+                    heuristic=True,
+                )
+                if explain
+                else NO_EXPLANATION
             ),
         )
 
@@ -145,10 +150,19 @@ def evaluate_mosca(
         mitigation = "migrate-or-resign"
 
     steps = (
-        f"X = max({shelf.x_conf}, {shelf.x_integ}) = {x} y ({shelf.basis})",
-        f"Y = {y_years} y (planning heuristic)",
-        f"Z_effective = {z.z_date.isoformat()} = {z_years:.3f} y from "
-        f"{as_of.isoformat()} ({z.bound_by})",
-        f"gap = {x} + {y_years} - {z_years:.3f} = {gap:.3f} y -> {band.value}",
+        ()
+        if not explain
+        else (
+            f"X = max({shelf.x_conf}, {shelf.x_integ}) = {x} y ({shelf.basis})",
+            f"Y = {y_years} y (planning heuristic)",
+            f"Z_effective = {z.z_date.isoformat()} = {z_years:.3f} y from "
+            f"{as_of.isoformat()} ({z.bound_by})",
+            f"gap = {x} + {y_years} - {z_years:.3f} = {gap:.3f} y -> {band.value}",
+        )
     )
-    return result(band, gap, mitigation, steps[-1], steps)
+    note = (
+        steps[-1]
+        if steps
+        else f"gap = {x} + {y_years} - {z_years:.3f} = {gap:.3f} y -> {band.value}"
+    )
+    return result(band, gap, mitigation, note, steps)

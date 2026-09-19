@@ -15,8 +15,11 @@ from qavach_core.export.register import (
     HEURISTIC_NOTICE,
     REGISTER_VERSION,
     RegisterInput,
+    assemble_register,
     build_register,
     plain,
+    register_entry,
+    roadmap_document,
     unit_id,
 )
 from qavach_core.export.sarif import FAIL_ON_TOKENS, build_sarif, evaluate_fail_on
@@ -29,6 +32,7 @@ __all__ = [
     "HEURISTIC_NOTICE",
     "REGISTER_VERSION",
     "RegisterInput",
+    "assemble_register",
     "bom_ref",
     "build_cbom",
     "build_register",
@@ -39,6 +43,8 @@ __all__ = [
     "evaluate_fail_on",
     "location_of",
     "plain",
+    "register_entry",
+    "roadmap_document",
     "SIGNATURE_FORMAT",
     "Signer",
     "Verify",

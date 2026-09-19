@@ -138,7 +138,7 @@ via the explain API. **Total runtime under 60s for 50k assets (NFR-02).**
 | ☒ | T-065 ★ | CARAF D3 expected value: criticality × sensitivity × exposure × mosca gap factor. | T-064 |
 | ☒ | T-066 ★ | CARAF D4 outcome selection: Migrate / Compensating control / Accept / Phase out, against `risk_tolerance.yaml`. **Every outcome carries a human-readable reason string.** | T-065 |
 | ☒ | T-067 ★ | Explanation objects: every score serialises its inputs, its formula, the policy values used, and each value's citation. Powers FR-360 and the UI drill-down. | T-064, T-066 |
-| ☐ | T-068 ★ | **Core half done** (`PolicySnapshot`: frozen, canonical JSON, SHA-256 `snapshot_id`, scoring reads only it); **the `scan_runs.policy_snapshot_json` column waits on T-070.** Policy snapshotting into `scan_runs.policy_snapshot_json`. Scores are **always** computed against the snapshot, never against current policy. | T-060, T-070 |
+| ☒ | T-068 ★ | **Done** (core `PolicySnapshot`; stored whole in `scan_runs.policy_snapshot_json` and reloaded for simulate). Was: core half done (`PolicySnapshot`: frozen, canonical JSON, SHA-256 `snapshot_id`, scoring reads only it); **the `scan_runs.policy_snapshot_json` column waits on T-070.** Policy snapshotting into `scan_runs.policy_snapshot_json`. Scores are **always** computed against the snapshot, never against current policy. | T-060, T-070 |
 
 ---
 
@@ -150,15 +150,15 @@ progress, and the inventory endpoint returns faceted results in under 500ms for
 
 | | ID | Task | Blocked by |
 |---|---|---|---|
-| ☐ | T-070 ★ | SQLAlchemy models + Alembic baseline per `ARCH.md §11`. | T-002 |
-| ☐ | T-071 ★ | Repositories. `packages/core` stays pure — repositories live in `packages/storage`. | T-070 |
-| ☐ | T-072 ★ | RQ pipeline orchestration: collect → normalise → reconcile → context → risk → recommend → roadmap. Per-stage status, per-collector partial failure. | T-030, T-071 |
-| ☐ | T-073 ★ | FastAPI surface per `ARCH.md §12`. Transport only — zero business logic in route handlers. | T-072 |
+| ☒ | T-070 ★ | SQLAlchemy models + Alembic baseline per `ARCH.md §11`. | T-002 |
+| ☒ | T-071 ★ | Repositories. `packages/core` stays pure — repositories live in `packages/storage`. | T-070 |
+| ☒ | T-072 ★ | RQ pipeline orchestration: collect → normalise → reconcile → context → risk → recommend → roadmap. Per-stage status, per-collector partial failure. | T-030, T-071 |
+| ☒ | T-073 ★ | FastAPI surface per `ARCH.md §12`. Transport only — zero business logic in route handlers. | T-072 |
 | ☐ | T-073a ★ | Agent enrollment/registry backend: single-use token issuance, mTLS credential exchange, `agents`/`agent_runs` persistence (`ARCH.md §3a`, §11), spec-polling and results-ingestion endpoints. | T-070, T-073, T-031a |
-| ☐ | T-074 ★ | WebSocket progress with per-collector status events. | T-072 |
-| ☐ | T-075 ★ | `POST /policy/simulate` — pure re-score over stored assets, no re-scan. Must return in under 1s for 50k assets; this powers the Mosca explorer. | T-068, T-073 |
-| ☐ | T-076 | Suppressions with reason and expiry; persist across scans; write to the audit log. | T-071 |
-| ☐ | T-077 | Audit log for every mutating action. | T-071 |
+| ☒ | T-074 ★ | WebSocket progress with per-collector status events. | T-072 |
+| ☐ | T-075 ★ | **Surface built and tested; the 1 s budget is NOT yet met end to end** — scoring 50k assets takes 0.75 s, but loading them from SQLite pushes the total to 1.66 s (Postgres not measured). `POST /policy/simulate` — pure re-score over stored assets, no re-scan. Must return in under 1s for 50k assets; this powers the Mosca explorer. | T-068, T-073 |
+| ☒ | T-076 | Suppressions with reason and expiry; persist across scans; write to the audit log. | T-071 |
+| ☒ | T-077 | Audit log for every mutating action. | T-071 |
 
 ---
 

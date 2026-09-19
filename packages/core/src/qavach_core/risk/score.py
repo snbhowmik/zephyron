@@ -14,7 +14,7 @@ gets a coverage-gap result naming the reason, and stays visible (the
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from qavach_core.model.enums import CryptoFunction, FindingClass, MigrationAuthority
@@ -70,13 +70,30 @@ class AssetRiskScore:
         return tuple(p for p in parts if p)
 
 
+@dataclass(slots=True)
+class ScoreMemo:
+    """Per-run caches for what depends only on the *system*, not the asset:
+    `Z_effective` (regimes + criticality + scenario) and shelf life (function +
+    system + artefact lifetime). Scoring 50k assets across a few dozen systems
+    recomputes these thousands of times otherwise. A memo is valid for one
+    `(policy, as_of, scenario)` only; make a new one when any of them changes."""
+
+    z: dict[tuple[object, ...], ZEffective] = field(default_factory=dict)
+    shelf: dict[tuple[object, ...], ShelfLife] = field(default_factory=dict)
+
+
 def score_asset(
     asset: AssetRiskInput,
     *,
     policy: PolicySnapshot,
     as_of: date,
     scenario: str | None = None,
+    explain: bool = True,
+    memo: ScoreMemo | None = None,
 ) -> AssetRiskScore:
+    """`explain=False` is the fast path (`policy/simulate`): identical numbers,
+    identical bands and outcomes - same code - but no explanation prose is built.
+    `tests/core/test_score.py` asserts the two paths agree."""
     if asset.system is None:
         reason = "no system is bound to this asset: business context is missing (unassigned bucket)"
         return AssetRiskScore(
@@ -94,25 +111,38 @@ def score_asset(
         )
 
     system = asset.system
-    shelf = shelf_life_years(
-        asset.function,
-        system=system,
-        policy=policy,
-        artefact_lifetime_years=asset.artefact_lifetime_years,
-        consumers=asset.consumers,
-    )
-    z = z_effective(
-        regulatory_regimes=system.regulatory_regimes,
-        criticality=system.criticality,
-        policy=policy,
-        scenario=scenario,
-    )
+    shelf_key = (asset.function, system.id, system.retention_years, asset.artefact_lifetime_years)
+    if memo is not None and not asset.consumers and shelf_key in memo.shelf:
+        shelf = memo.shelf[shelf_key]
+    else:
+        shelf = shelf_life_years(
+            asset.function,
+            system=system,
+            policy=policy,
+            artefact_lifetime_years=asset.artefact_lifetime_years,
+            consumers=asset.consumers,
+        )
+        if memo is not None and not asset.consumers:
+            memo.shelf[shelf_key] = shelf
+    z_key = (system.regulatory_regimes, system.criticality, scenario)
+    if memo is not None and z_key in memo.z:
+        z = memo.z[z_key]
+    else:
+        z = z_effective(
+            regulatory_regimes=system.regulatory_regimes,
+            criticality=system.criticality,
+            policy=policy,
+            scenario=scenario,
+        )
+        if memo is not None:
+            memo.z[z_key] = z
     y = estimate_y(
         asset.loci,
         authority=asset.authority,
         occurrence_count=len(asset.loci),
         policy=policy,
         facts=asset.effort_facts,
+        explain=explain,
     )
     mosca = evaluate_mosca(
         finding_class=asset.finding_class,
@@ -122,11 +152,14 @@ def score_asset(
         z=z,
         as_of=as_of,
         policy=policy,
+        explain=explain,
     )
     ev = (
         None
         if mosca.band is UrgencyBand.COVERAGE_GAP
-        else expected_value(system=system, gap_years=mosca.gap_years, policy=policy)
+        else expected_value(
+            system=system, gap_years=mosca.gap_years, policy=policy, explain=explain
+        )
     )
     decision = decide(
         finding_class=asset.finding_class,
@@ -136,6 +169,7 @@ def score_asset(
         y_years=y.years,
         criticality=system.criticality,
         policy=policy,
+        explain=explain,
     )
     return AssetRiskScore(
         asset.identity,
@@ -158,5 +192,10 @@ def score_estate(
     policy: PolicySnapshot,
     as_of: date,
     scenario: str | None = None,
+    explain: bool = True,
 ) -> Sequence[AssetRiskScore]:
-    return [score_asset(a, policy=policy, as_of=as_of, scenario=scenario) for a in assets]
+    memo = ScoreMemo()
+    return [
+        score_asset(a, policy=policy, as_of=as_of, scenario=scenario, explain=explain, memo=memo)
+        for a in assets
+    ]

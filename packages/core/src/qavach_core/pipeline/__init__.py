@@ -10,6 +10,7 @@ from qavach_core.pipeline.assemble import (
     also_quantum_vulnerable_of,
     assemble,
 )
+from qavach_core.pipeline.plan import plan_roadmap
 
 __all__ = [
     "AssembleKnowledge",
@@ -18,4 +19,5 @@ __all__ = [
     "FamilyFunctions",
     "also_quantum_vulnerable_of",
     "assemble",
+    "plan_roadmap",
 ]
