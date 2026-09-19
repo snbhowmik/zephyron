@@ -36,7 +36,9 @@ from qavach_core.context import parse_system_rows, parse_systems_csv
 from qavach_core.export import (
     assemble_register,
     build_cbom,
+    build_sarif_from_entries,
     downgrade_to_1_6,
+    evaluate_fail_on_entries,
 )
 from qavach_core.policy import PolicyError
 from qavach_storage import AssetFilter, Repository, models
@@ -422,6 +424,27 @@ def create_app(state: AppState) -> FastAPI:
             as_of=date.fromisoformat(scan.as_of),
             generated_at=scan.started,
         )
+
+    @app.get(f"{API_PREFIX}/scans/{{scan_id}}/export/sarif")
+    def export_sarif(scan_id: str, repo: RepoDep) -> dict[str, Any]:
+        """SARIF 2.1.0 from the stored register entries (T-096); same document the
+        in-memory path builds. Informational classes produce no result."""
+        scan_or_404(repo, scan_id)
+        return build_sarif_from_entries(
+            repo.score_entries(scan_id), repo.load_assets(scan_id), qavach_version="0.1.0"
+        )
+
+    @app.get(f"{API_PREFIX}/scans/{{scan_id}}/gate")
+    def gate(scan_id: str, repo: RepoDep, fail_on: str = Query(min_length=1)) -> dict[str, Any]:
+        """CI gate: `fail_on` is a comma-separated list of finding classes and/or
+        bands. An unknown token is a 422, never a silent pass."""
+        scan_or_404(repo, scan_id)
+        tokens = [t.strip() for t in fail_on.split(",") if t.strip()]
+        try:
+            failed, reasons = evaluate_fail_on_entries(repo.score_entries(scan_id), tokens)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return {"fail": failed, "fail_on": tokens, "reasons": reasons}
 
     @app.get(f"{API_PREFIX}/scans/{{scan_id}}/export/report.pdf")
     def export_pdf(scan_id: str, repo: RepoDep) -> Response:

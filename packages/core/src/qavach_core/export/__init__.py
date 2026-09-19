@@ -22,7 +22,13 @@ from qavach_core.export.register import (
     roadmap_document,
     unit_id,
 )
-from qavach_core.export.sarif import FAIL_ON_TOKENS, build_sarif, evaluate_fail_on
+from qavach_core.export.sarif import (
+    FAIL_ON_TOKENS,
+    build_sarif,
+    build_sarif_from_entries,
+    evaluate_fail_on,
+    evaluate_fail_on_entries,
+)
 from qavach_core.export.sign import FORMAT as SIGNATURE_FORMAT
 from qavach_core.export.sign import Signer, Verify, sign_export, signed_message, verify_export
 
@@ -37,6 +43,8 @@ __all__ = [
     "build_cbom",
     "build_register",
     "build_sarif",
+    "build_sarif_from_entries",
+    "evaluate_fail_on_entries",
     "cbom_violations",
     "component_refs",
     "downgrade_to_1_6",

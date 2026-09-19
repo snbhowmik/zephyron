@@ -16,8 +16,11 @@ from qavach_core.export import (
     bom_ref,
     build_cbom,
     build_sarif,
+    build_sarif_from_entries,
     cbom_violations,
     evaluate_fail_on,
+    evaluate_fail_on_entries,
+    register_entry,
     sign_export,
     verify_export,
 )
@@ -272,6 +275,25 @@ def test_sarif_results_carry_a_location_and_the_bom_ref() -> None:
     for r in build_sarif(ITEMS, qavach_version="0.1.0")["runs"][0]["results"]:
         assert r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
         assert r["properties"]["bom-ref"].startswith("crypto/algo/")
+
+
+def test_sarif_from_stored_entries_equals_the_in_memory_document() -> None:
+    """The API holds entries + assets, not RegisterInputs; it must produce the same
+    SARIF the live path does."""
+    entries = [register_entry(i) for i in ITEMS]
+    stored = build_sarif_from_entries(entries, [i.asset for i in ITEMS], qavach_version="0.1.0")
+    assert stored == build_sarif(ITEMS, qavach_version="0.1.0")
+    # an entry whose asset is absent is skipped, never a crash
+    assert build_sarif_from_entries(entries, [], qavach_version="0.1.0")["runs"][0]["results"] == []
+
+
+def test_fail_on_over_stored_entries_matches_and_refuses_typos() -> None:
+    entries = [register_entry(i) for i in ITEMS]
+    live = evaluate_fail_on(ITEMS, ["classical-weak"])
+    stored = evaluate_fail_on_entries(entries, ["classical-weak"])
+    assert live[0] == stored[0] and len(live[1]) == len(stored[1])
+    with pytest.raises(ValueError, match="unknown"):
+        evaluate_fail_on_entries(entries, ["quantum-vulnerble"])
 
 
 def test_fail_on_gates_by_class_or_band_and_explains_why() -> None:

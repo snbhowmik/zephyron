@@ -215,6 +215,13 @@ export function Dashboard() {
           >
             Crypto Risk Register (JSON)
           </button>
+          <button
+            type="button"
+            className="rounded-md bg-slate-800 px-3 py-1.5 ring-1 ring-slate-700 hover:bg-slate-700"
+            onClick={() => void downloadExport(scanId, "sarif")}
+          >
+            SARIF 2.1.0 (CI)
+          </button>
         </div>
         <div className="mt-3">
           <StubNotice title="Executive PDF report" task="T-094">

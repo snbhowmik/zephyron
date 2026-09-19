@@ -138,19 +138,19 @@ export function progressSocket(scanId: string): WebSocket {
  *  from a Blob - a plain link could not authenticate. */
 export async function downloadExport(
   id: string,
-  kind: "cbom" | "risk-register",
+  kind: "cbom" | "risk-register" | "sarif",
   spec = "1.7",
 ): Promise<void> {
   const path =
     kind === "cbom"
       ? `/api/v1/scans/${id}/export/cbom?spec=${spec}`
-      : `/api/v1/scans/${id}/export/risk-register`;
+      : `/api/v1/scans/${id}/export/${kind}`;
   const response = await fetch(path, withAuth());
   if (!response.ok) throw new ApiError(response.status, response.statusText);
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");
   link.href = url;
-  link.download = kind === "cbom" ? `${id}.cbom-${spec}.cdx.json` : `${id}.risk-register.json`;
+  link.download = kind === "cbom" ? `${id}.cbom-${spec}.cdx.json` : `${id}.${kind}.json`;
   link.click();
   URL.revokeObjectURL(url);
 }

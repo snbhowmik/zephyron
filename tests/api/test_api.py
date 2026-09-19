@@ -197,6 +197,29 @@ def test_the_register_export_validates_against_its_schema_and_ties_to_the_cbom(
     )
 
 
+def test_sarif_is_served_from_stored_entries_and_gates_by_class(client: TestClient) -> None:
+    sid = _scan(client)
+    sarif = client.get(f"/api/v1/scans/{sid}/export/sarif").json()
+    results = sarif["runs"][0]["results"]
+    register = client.get(f"/api/v1/scans/{sid}/export/risk-register").json()
+    refs = {e["bom_ref"]: e for e in register["entries"]}
+    assert results and {r["properties"]["bom-ref"] for r in results} <= set(refs)
+    assert all(
+        refs[r["properties"]["bom-ref"]]["finding_class"] not in ("grover-affected", "quantum-safe")
+        for r in results
+    )
+    failed = client.get(f"/api/v1/scans/{sid}/gate", params={"fail_on": "classical-weak"}).json()
+    assert failed["fail"] and failed["reasons"]
+    overdue = client.get(
+        f"/api/v1/scans/{sid}/gate", params={"fail_on": "quantum-safe,overdue"}
+    ).json()
+    assert overdue["fail"] is True  # the demo has overdue entries
+    assert (
+        client.get(f"/api/v1/scans/{sid}/gate", params={"fail_on": "nonsense"}).status_code == 422
+    )
+    assert client.get("/api/v1/scans/nope/export/sarif").status_code == 404
+
+
 def test_the_pdf_report_is_an_honest_501_not_an_empty_file(client: TestClient) -> None:
     sid = _scan(client)
     r = client.get(f"/api/v1/scans/{sid}/export/report.pdf")
