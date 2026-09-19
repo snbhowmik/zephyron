@@ -3,7 +3,7 @@ name = "qavach-core"
 version = "0.1.0"
 description = "QAVACH domain model, normalisation, reconciliation, risk, recommendation and roadmap logic. Pure Python: zero I/O, zero framework imports. See CLAUDE.md §3."
 requires-python = ">=3.12"
-dependencies = ["cryptography>=46"]
+dependencies = []
 
 [build-system]
 requires = ["hatchling"]

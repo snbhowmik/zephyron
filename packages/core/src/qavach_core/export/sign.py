@@ -1,114 +1,85 @@
-"""Signed exports. T-097.
+"""Signed exports - the protocol. T-097.
 
 A **detached** signature over the exact bytes of an export, leaving the export
-itself untouched. Detached because CycloneDX embeds signatures in JSF 0.82, whose
+untouched. Detached because CycloneDX embeds signatures in JSF 0.82, whose
 algorithm list (RS/PS/ES/Ed25519/Ed448/HS) has **no post-quantum algorithm**:
 embedding would force a quantum-vulnerable signature into an inventory whose
 whole purpose is finding those. A detached ML-DSA-65 (FIPS 204) signature keeps
 the CBOM schema-valid (I5) and the signature post-quantum.
 
-`cryptography` 50 provides ML-DSA-65; if a build lacks it the signer falls back
-to Ed25519 and the output *says so* in `limitation` - never a silent downgrade.
-The signature covers a SHA-256 of the bytes plus the byte length, and the
-verifier recomputes both from the file it is given, so neither truncation nor
-substitution verifies.
+`packages/core` may import nothing but the stdlib (`tests/test_architecture.py`),
+so this module defines only the *protocol*: the envelope, the signed message and
+the tamper checks. The actual cryptography is injected - a `Signer` to sign, a
+verify callable to verify - and lives in `apps/api` (`qavach_api.export_signing`),
+which owns key custody. A signer whose algorithm is not post-quantum must say so
+in `limitation`, and the envelope carries it: never a silent downgrade.
+
+The signed message is a SHA-256 of the bytes plus their length, and the verifier
+recomputes both from the file it is given, so neither truncation nor substitution
+verifies.
 """
 
 from __future__ import annotations
 
 import base64
 import hashlib
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Protocol
 
 FORMAT = "qavach-detached-signature/1"
-_ED25519_LIMITATION = (
-    "Signed with Ed25519, which is quantum-vulnerable: ML-DSA-65 was not available in "
-    "this build. Treat this signature as authenticating today, not against a future "
-    "cryptographically relevant quantum computer."
-)
+
+Verify = Callable[[str, bytes, bytes, bytes], bool]
+"""`(algorithm, public_key, signature, message) -> valid`."""
+
+
+class Signer(Protocol):
+    algorithm: str
+    standard: str
+    limitation: str | None
+
+    def public_key(self) -> bytes: ...
+
+    def sign(self, message: bytes) -> bytes: ...
 
 
 def _b64(data: bytes) -> str:
     return base64.b64encode(data).decode("ascii")
 
 
-def _message(digest_hex: str, length: int) -> bytes:
+def signed_message(digest_hex: str, length: int) -> bytes:
     return f"{FORMAT}\nsha256:{digest_hex}\nbytes:{length}".encode("ascii")
 
 
-def generate_signer(prefer: str = "ML-DSA-65") -> Any:
-    from cryptography.exceptions import UnsupportedAlgorithm
-    from cryptography.hazmat.primitives.asymmetric import ed25519
-
-    if prefer == "ML-DSA-65":
-        try:
-            from cryptography.hazmat.primitives.asymmetric import mldsa
-
-            return mldsa.MLDSA65PrivateKey.generate()
-        except (ImportError, AttributeError, UnsupportedAlgorithm):
-            pass
-    return ed25519.Ed25519PrivateKey.generate()
-
-
-def _algorithm_of(private_key: Any) -> tuple[str, str, str | None]:
-    name = type(private_key).__name__
-    if name == "MLDSA65PrivateKey":
-        return "ML-DSA-65", "FIPS 204", None
-    if name == "Ed25519PrivateKey":
-        return "Ed25519", "RFC 8032", _ED25519_LIMITATION
-    raise ValueError(f"unsupported signing key type {name}")
-
-
-def _public_bytes(private_key: Any) -> bytes:
-    public = private_key.public_key()
-    if hasattr(public, "public_bytes_raw"):
-        return bytes(public.public_bytes_raw())
-    from cryptography.hazmat.primitives import serialization
-
-    raw: bytes = public.public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
-    return raw
-
-
-def sign_export(data: bytes, private_key: Any, *, key_id: str | None = None) -> dict[str, Any]:
-    algorithm, standard, limitation = _algorithm_of(private_key)
+def sign_export(data: bytes, signer: Signer, *, key_id: str | None = None) -> dict[str, Any]:
     digest = hashlib.sha256(data).hexdigest()
-    signature = private_key.sign(_message(digest, len(data)))
     return {
         "format": FORMAT,
-        "algorithm": algorithm,
-        "standard": standard,
+        "algorithm": signer.algorithm,
+        "standard": signer.standard,
         "signed_sha256": digest,
         "signed_bytes": len(data),
         "key_id": key_id,
-        "public_key": _b64(_public_bytes(private_key)),
-        "signature": _b64(signature),
-        "limitation": limitation,
+        "public_key": _b64(signer.public_key()),
+        "signature": _b64(signer.sign(signed_message(digest, len(data)))),
+        "limitation": signer.limitation,
     }
 
 
-def verify_export(data: bytes, envelope: dict[str, Any]) -> bool:
+def verify_export(data: bytes, envelope: dict[str, Any], verify: Verify) -> bool:
     """Recomputes the digest and length from `data`; False on any mismatch or
-    malformed envelope - never raises on hostile input."""
+    malformed envelope - never raises on a hostile one."""
     try:
         if envelope.get("format") != FORMAT:
             return False
         digest = hashlib.sha256(data).hexdigest()
         if digest != envelope["signed_sha256"] or len(data) != envelope["signed_bytes"]:
             return False
-        public_raw = base64.b64decode(envelope["public_key"], validate=True)
+        public_key = base64.b64decode(envelope["public_key"], validate=True)
         signature = base64.b64decode(envelope["signature"], validate=True)
-        message = _message(digest, len(data))
-        algorithm = envelope["algorithm"]
-        if algorithm == "ML-DSA-65":
-            from cryptography.hazmat.primitives.asymmetric import mldsa
-
-            mldsa.MLDSA65PublicKey.from_public_bytes(public_raw).verify(signature, message)
-        elif algorithm == "Ed25519":
-            from cryptography.hazmat.primitives.asymmetric import ed25519
-
-            ed25519.Ed25519PublicKey.from_public_bytes(public_raw).verify(signature, message)
-        else:
-            return False
-        return True
+        return bool(
+            verify(
+                str(envelope["algorithm"]), public_key, signature, signed_message(digest, len(data))
+            )
+        )
     except Exception:  # noqa: BLE001 - any failure on a hostile envelope means "not verified"
         return False

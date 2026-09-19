@@ -1435,6 +1435,7 @@ name = "qavach-api"
 version = "0.1.0"
 source = { editable = "apps/api" }
 dependencies = [
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "pydantic" },
     { name = "qavach-core" },
@@ -1444,6 +1445,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=46" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "qavach-core", editable = "packages/core" },
@@ -1482,12 +1484,6 @@ requires-dist = [
 name = "qavach-core"
 version = "0.1.0"
 source = { editable = "packages/core" }
-dependencies = [
-    { name = "cryptography" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "cryptography", specifier = ">=46" }]
 
 [[package]]
 name = "qavach-sandbox"

@@ -18,7 +18,6 @@ from qavach_core.export import (
     build_sarif,
     cbom_violations,
     evaluate_fail_on,
-    generate_signer,
     sign_export,
     verify_export,
 )
@@ -301,31 +300,60 @@ def test_a_clean_estate_passes_the_gate() -> None:
     )
 
 
-# ---- T-097: detached signatures ----
+# ---- T-097: the detached-signature protocol (real crypto is tested in tests/api) ----
+
+
+class _FakeSigner:
+    """Stands in for a real signer so the protocol is tested without crypto:
+    the 'signature' is a keyed digest, verifiable only with the same key."""
+
+    algorithm = "FAKE-1"
+    standard = "test"
+    limitation: str | None = "test signer: not real cryptography"
+
+    def __init__(self, secret: bytes = b"k1") -> None:
+        self._secret = secret
+
+    def public_key(self) -> bytes:
+        return b"pub:" + self._secret
+
+    def sign(self, message: bytes) -> bytes:
+        import hashlib
+
+        return hashlib.sha256(self._secret + message).digest()
+
+
+def _fake_verify(algorithm: str, public_key: bytes, signature: bytes, message: bytes) -> bool:
+    import hashlib
+
+    return (
+        algorithm == "FAKE-1"
+        and public_key.startswith(b"pub:")
+        and hashlib.sha256(public_key[4:] + message).digest() == signature
+    )
 
 
 DATA = json.dumps(CBOM, sort_keys=True).encode()
 
 
-def test_an_ml_dsa_65_signature_verifies_and_leaves_the_cbom_untouched() -> None:
-    key = generate_signer()
-    envelope = sign_export(DATA, key, key_id="k1")
-    assert envelope["algorithm"] == "ML-DSA-65" and envelope["standard"] == "FIPS 204"
-    assert envelope["limitation"] is None
-    assert verify_export(DATA, envelope)
-    assert (
-        sc.errors_of(CBOM_VALIDATOR, json.loads(DATA)) == []
-    )  # export unchanged, still schema-valid
+def test_a_signed_export_verifies_and_the_cbom_stays_untouched_and_schema_valid() -> None:
+    envelope = sign_export(DATA, _FakeSigner(), key_id="k1")
+    assert envelope["format"] == "qavach-detached-signature/1" and envelope["key_id"] == "k1"
+    assert verify_export(DATA, envelope, _fake_verify)
+    assert sc.errors_of(CBOM_VALIDATOR, json.loads(DATA)) == []  # detached: export unchanged
+
+
+def test_the_signers_limitation_is_carried_in_the_envelope_never_dropped() -> None:
+    assert "not real cryptography" in sign_export(DATA, _FakeSigner())["limitation"]
 
 
 def test_tampering_truncation_and_substitution_all_fail_verification() -> None:
-    envelope = sign_export(DATA, generate_signer())
-    assert not verify_export(DATA + b" ", envelope)
-    assert not verify_export(DATA[:-1], envelope)
-    assert not verify_export(DATA.replace(b"RSASSA", b"RSAXXX", 1), envelope)
-    other = sign_export(DATA, generate_signer())
-    forged = {**envelope, "public_key": other["public_key"]}
-    assert not verify_export(DATA, forged)
+    envelope = sign_export(DATA, _FakeSigner())
+    assert not verify_export(DATA + b" ", envelope, _fake_verify)
+    assert not verify_export(DATA[:-1], envelope, _fake_verify)
+    assert not verify_export(DATA.replace(b"RSASSA", b"RSAXXX", 1), envelope, _fake_verify)
+    forged = {**envelope, "public_key": sign_export(DATA, _FakeSigner(b"k2"))["public_key"]}
+    assert not verify_export(DATA, forged, _fake_verify)
 
 
 @pytest.mark.parametrize(
@@ -337,27 +365,20 @@ def test_tampering_truncation_and_substitution_all_fail_verification() -> None:
         lambda e: e.__setitem__("format", "other/1"),
         lambda e: e.__setitem__("public_key", ""),
         lambda e: e.__setitem__("signed_bytes", -1),
+        lambda e: e.__setitem__("signed_sha256", "0" * 64),
     ],
 )
 def test_a_hostile_envelope_never_raises_and_never_verifies(mutate) -> None:  # type: ignore[no-untyped-def]
-    envelope = sign_export(DATA, generate_signer())
+    envelope = sign_export(DATA, _FakeSigner())
     mutate(envelope)
-    assert verify_export(DATA, envelope) is False
+    assert verify_export(DATA, envelope, _fake_verify) is False
 
 
-def test_the_ed25519_fallback_states_its_limitation_instead_of_downgrading_silently() -> None:
-    key = generate_signer(prefer="Ed25519")
-    envelope = sign_export(DATA, key)
-    assert envelope["algorithm"] == "Ed25519"
-    assert "quantum-vulnerable" in envelope["limitation"] and verify_export(DATA, envelope)
+def test_a_verifier_that_raises_is_treated_as_not_verified() -> None:
+    def boom(*_a: object) -> bool:
+        raise RuntimeError("x")
 
-
-def test_the_ml_dsa_signature_has_the_fips_204_size() -> None:
-    import base64
-
-    envelope = sign_export(DATA, generate_signer())
-    assert len(base64.b64decode(envelope["signature"])) == 3309  # matches performance.yaml
-    assert len(base64.b64decode(envelope["public_key"])) == 1952
+    assert verify_export(DATA, sign_export(DATA, _FakeSigner()), boom) is False
 
 
 # ---- T-093: the CycloneDX 1.6 downgrade ----

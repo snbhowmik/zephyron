@@ -20,7 +20,8 @@ from qavach_core.export.register import (
     unit_id,
 )
 from qavach_core.export.sarif import FAIL_ON_TOKENS, build_sarif, evaluate_fail_on
-from qavach_core.export.sign import generate_signer, sign_export, verify_export
+from qavach_core.export.sign import FORMAT as SIGNATURE_FORMAT
+from qavach_core.export.sign import Signer, Verify, sign_export, signed_message, verify_export
 
 __all__ = [
     "DOCUMENTED_PROPERTIES",
@@ -36,10 +37,13 @@ __all__ = [
     "component_refs",
     "downgrade_to_1_6",
     "evaluate_fail_on",
-    "generate_signer",
     "location_of",
     "plain",
+    "SIGNATURE_FORMAT",
+    "Signer",
+    "Verify",
     "sign_export",
+    "signed_message",
     "unit_id",
     "verify_export",
 ]
