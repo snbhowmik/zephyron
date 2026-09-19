@@ -65,6 +65,27 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    """Prints what this build can actually do, as JSON: which collectors are
+    registered, which were skipped and why, and where config/binaries were
+    found. Exit 1 if nothing is registered. Used to verify a frozen bundle."""
+    from qavach_agent.registry import default_config_dir, locate_binary
+
+    built = build_registry(config_dir=Path(args.config_dir) if args.config_dir else None)
+    report = {
+        "registered": sorted(c.name for c in built.registry),
+        "skipped": built.skipped,
+        "config_dir": str(Path(args.config_dir) if args.config_dir else default_config_dir()),
+        "binaries": {
+            name: (str(found) if (found := locate_binary(name)) else None)
+            for name in ("certfinder", "cbomkit-theia")
+        },
+        "frozen": bool(getattr(sys, "frozen", False)),
+    }
+    print(json.dumps(report, indent=2))
+    return 0 if report["registered"] else 1
+
+
 def _cmd_parse_worker(args: argparse.Namespace) -> int:
     result: int = parse_worker_main(args.parse_entrypoint)
     return result
@@ -79,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     # "==SUPPRESS==" instead of hiding the line) keeps it out of the
     # per-item listing too. It remains fully parseable either way — this
     # only changes what --help prints.
-    subparsers = parser.add_subparsers(dest="command", required=True, metavar="{enroll,run}")
+    subparsers = parser.add_subparsers(dest="command", required=True, metavar="{enroll,run,doctor}")
 
     enroll_parser = subparsers.add_parser(
         "enroll", help="exchange an enrollment token for a credential"
@@ -102,6 +123,10 @@ def build_parser() -> argparse.ArgumentParser:
     # Internal: re-exec target for parser_worker.run_in_worker (ARCH.md
     # §3a's resource-limited parsing worker, T-031b). Not a user-facing
     # command — hidden from --help.
+    doctor_parser = subparsers.add_parser("doctor", help="report what this build can run")
+    doctor_parser.add_argument("--config-dir")
+    doctor_parser.set_defaults(func=_cmd_doctor)
+
     worker_parser = subparsers.add_parser("_parse-worker")
     worker_parser.add_argument("parse_entrypoint")
     worker_parser.set_defaults(func=_cmd_parse_worker)

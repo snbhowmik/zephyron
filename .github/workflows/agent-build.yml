@@ -1,0 +1,86 @@
+name: Agent build
+
+# T-031c. PyInstaller does not cross-compile, so the agent is frozen once per
+# OS/arch on a native runner (scripts/build_agent.py). CBOMkit-theia is Go and
+# cross-compiles, so it is built once (make build-theia) and shared. Every leg
+# ends by running the frozen binary's own `doctor` under an empty PATH and
+# fails if any collector is unregistered - the artefact is checked, not the
+# source tree.
+#
+# NOT YET RUN ON GITHUB: only the linux/amd64 leg was exercised locally
+# (NOTE.md, T-031c). The Windows, macOS and linux/arm64 legs, and the
+# provenance attestation, are unverified until this workflow runs once.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["agent-v*"]
+  pull_request:
+    paths:
+      - "apps/agent/**"
+      - "scripts/build_agent.py"
+      - "docker/theia-build/**"
+      - ".github/workflows/agent-build.yml"
+
+concurrency:
+  group: agent-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  theia:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cross-compile CBOMkit-theia (5 targets)
+        run: make build-theia
+      - uses: actions/upload-artifact@v4
+        with:
+          name: theia
+          path: dist/theia
+          if-no-files-found: error
+
+  agent:
+    needs: theia
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, label: linux-amd64}
+          - {os: ubuntu-24.04-arm, label: linux-arm64}
+          - {os: windows-latest, label: windows-amd64}
+          - {os: macos-15-intel, label: darwin-amd64}
+          - {os: macos-latest, label: darwin-arm64}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.12.15"
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: theia
+          path: theia
+      - name: Install workspace (with PyInstaller)
+        run: uv sync --all-packages --group dev
+      - name: Build and self-check the frozen agent
+        run: uv run --all-packages python scripts/build_agent.py --theia-dir theia
+      - name: Attest build provenance
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/agent/qavach-agent*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qavach-agent-${{ matrix.label }}
+          path: |
+            dist/agent/qavach-agent*
+            dist/agent/SHA256SUMS
+          if-no-files-found: error

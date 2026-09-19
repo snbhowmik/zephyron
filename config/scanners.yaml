@@ -141,6 +141,14 @@ agent_artifacts:
     version: v0.7.0
     licence: Apache-2.0
     linux_amd64_sha256: cb59af8f99efc34efce6fa2f918da54a79a44b8c5cae49f3e2de586ca5614a85
+    # Per-platform pins for the agent build matrix (T-031c). Taken from the
+    # SHA-256 GitHub records for each v0.7.0 release asset, 2026-09-20.
+    sha256_by_platform:
+      linux_amd64: cb59af8f99efc34efce6fa2f918da54a79a44b8c5cae49f3e2de586ca5614a85
+      linux_arm64: e04e897729a15a05d803c02088e81566a63e4c41c74d19ae29370868667f8867
+      darwin_amd64: edf79b68c17808a1e8a1adaa0d1a37877e519d55dda45f44f40fdf93a8608917
+      darwin_arm64: 3fcbc085410eff535de5e75548ec70c690d48bfcb95a78f0c0decb20425c2349
+      windows_amd64: 6816ad8b17fc9ddb179cbac259bfd57cc306e0f86466eeee803536853428fdf4
     verified_on: 2026-09-18
     note: >
       22-commit history at time of adoption (NOTE.md §7) — re-check
