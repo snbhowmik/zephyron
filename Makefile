@@ -55,8 +55,8 @@ fmt: ## ruff format + biome format — run before every commit
 	@if [ -f apps/web/package.json ]; then pnpm --filter web fmt; \
 	else echo "apps/web not yet scaffolded — biome format skipped (TASK.md T-100)."; fi
 
-schema-check: ## validate sample CBOMs against CycloneDX 1.7
-	@echo "No vendored schema yet — see TASK.md T-011 and T-091." >&2; exit 1
+schema-check: ## CBOM valid against CycloneDX 1.7 offline, no risk data in it, register valid, docs consistent (I5)
+	uv run python scripts/schema_check.py
 
 scanners-pull: ## pull pinned scanner container images
 	ENGINE=$(ENGINE) uv run python3 scripts/pull_scanners.py

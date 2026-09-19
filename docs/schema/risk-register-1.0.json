@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qavach.example/schema/risk-register-1.0.json",
+  "title": "QAVACH Crypto Risk Register 1.0",
+  "description": "Everything QAVACH concludes about a CBOM: risk, Mosca, CARAF outcome, recommendation and roadmap position, keyed by the CBOM's bom-ref values (invariant I5). The CBOM itself carries none of this.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["register_version", "generated_at", "as_of", "heuristics_notice", "policy", "cbom", "summary", "entries", "roadmap"],
+  "properties": {
+    "register_version": {"const": "1.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "as_of": {"type": "string", "format": "date", "description": "The date every time-relative figure (Z in years, gaps) is measured from. Never the wall clock."},
+    "heuristics_notice": {"type": "string", "minLength": 1, "description": "States that Y, EV thresholds, retention defaults and the ephemeral cut-off are uncalibrated planning heuristics."},
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot_id", "z_scenario"],
+      "properties": {
+        "snapshot_id": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "SHA-256 of the canonical policy snapshot every score was computed against."},
+        "z_scenario": {"type": "string", "description": "The CRQC scenario in force. Z is a policy input, never a fact (I3)."}
+      }
+    },
+    "cbom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serial_number", "spec_version"],
+      "properties": {
+        "serial_number": {"type": ["string", "null"]},
+        "spec_version": {"type": ["string", "null"]}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "by_finding_class", "by_band", "coverage_failures", "coverage_failure_note", "unassigned"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0, "description": "The denominator for every count below."},
+        "by_finding_class": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "by_band": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "coverage_failures": {"type": "integer", "minimum": 0, "description": "Assets that could not be classified (I8). Never counted as safe."},
+        "coverage_failure_note": {"type": "string"},
+        "unassigned": {"type": "integer", "minimum": 0}
+      }
+    },
+    "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}},
+    "roadmap": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["waves", "bridges", "vendor_dependencies", "named_blockers", "infeasible", "excluded_trust_anchors", "triage", "notes"],
+          "properties": {
+            "waves": {"type": "array", "items": {"type": "object"}},
+            "bridges": {"type": "array", "items": {"type": "object"}},
+            "vendor_dependencies": {"type": "array", "items": {"type": "object"}},
+            "named_blockers": {"type": "array", "items": {"type": "object"}},
+            "infeasible": {"type": "array", "items": {"type": "object"}},
+            "excluded_trust_anchors": {"type": "integer", "minimum": 0},
+            "triage": {"type": "array", "items": {"type": "string"}},
+            "notes": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bom_ref", "system_id", "finding_class", "migration_authority", "authority_basis", "band", "outcome", "reason", "disputed", "mosca", "expected_value", "z_effective", "recommendation", "roadmap", "explanations"],
+      "properties": {
+        "bom_ref": {"type": "string", "minLength": 1, "description": "The bom-ref of the CBOM component this entry is about."},
+        "system_id": {"type": ["string", "null"], "description": "null = unassigned: visible, never dropped."},
+        "finding_class": {"enum": ["quantum-vulnerable", "classical-weak", "grover-affected", "quantum-safe", "unknown"]},
+        "migration_authority": {"enum": ["self", "vendor", "external-trust-anchor", "regulator-gated", "unknown"]},
+        "authority_basis": {"type": "string"},
+        "band": {"enum": ["overdue", "imminent", "planned", "not-applicable", "coverage-gap"]},
+        "outcome": {"enum": ["migrate", "compensating-control", "accept", "phase-out", null], "description": "null = no outcome issued (inventory-only, triage, or coverage gap); `reason` says which."},
+        "reason": {"type": "string", "minLength": 1, "description": "Human-readable reason; present for every entry."},
+        "disputed": {"type": "boolean"},
+        "mosca": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["x_conf_years", "x_integ_years", "y_years", "y_is_heuristic", "z_years", "gap_years", "mitigation", "note"],
+              "properties": {
+                "x_conf_years": {"type": "number", "minimum": 0},
+                "x_integ_years": {"type": "number", "minimum": 0},
+                "y_years": {"type": "number", "minimum": 0},
+                "y_is_heuristic": {"const": true},
+                "z_years": {"type": "number"},
+                "gap_years": {"type": ["number", "null"], "description": "X + Y - Z. Positive = already late. null when Mosca does not apply."},
+                "mitigation": {"enum": ["migrate", "migrate-or-resign", "migrate-at-renewal", null]},
+                "note": {"type": "string"}
+              }
+            }
+          ]
+        },
+        "expected_value": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ev", "criticality", "sensitivity", "exposure", "gap_factor"],
+              "properties": {
+                "ev": {"type": "number", "minimum": 0},
+                "criticality": {"type": "integer", "minimum": 1, "maximum": 5},
+                "sensitivity": {"type": "integer", "minimum": 1, "maximum": 5},
+                "exposure": {"type": "number", "exclusiveMinimum": 0},
+                "gap_factor": {"type": "number", "exclusiveMinimum": 0}
+              }
+            }
+          ]
+        },
+        "z_effective": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["date", "bound_by", "binding", "scenario"],
+              "properties": {
+                "date": {"type": "string", "format": "date"},
+                "bound_by": {"type": "string", "pattern": "^(scenario|deadline):.+"},
+                "binding": {"type": "boolean", "description": "true only when a regulator-enforced deadline bound Z."},
+                "scenario": {"type": "string"}
+              }
+            }
+          ]
+        },
+        "recommendation": {"type": ["object", "null"]},
+        "roadmap": {"type": ["object", "null"]},
+        "explanations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "formula", "inputs", "policy", "steps", "heuristic"],
+            "properties": {
+              "name": {"type": "string"},
+              "formula": {"type": "string"},
+              "inputs": {"type": "object"},
+              "policy": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["path", "value", "basis"],
+                  "properties": {"path": {"type": "string"}, "value": {}, "basis": {"type": "string", "minLength": 1}}
+                }
+              },
+              "steps": {"type": "array", "items": {"type": "string"}},
+              "heuristic": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

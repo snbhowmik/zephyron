@@ -188,15 +188,15 @@ at least one hybrid-bridge cycle in the demo dataset.
 
 | | ID | Task | Blocked by |
 |---|---|---|---|
-| ☐ | T-090 ★ | CycloneDX 1.7 CBOM export. Occurrences → `evidence.occurrences[]`, provenance → `evidence.identity[].methods[]`. **No purl on `cryptographic-asset` components.** | T-022 |
-| ☐ | T-091 ★ | `make schema-check`, wired into CI: validate against the official schema **and** assert no `qavach:` risk fields appear outside the documented namespace. Invariant I5. | T-090, T-003 |
-| ☐ | T-092 ★ | Crypto Risk Register export + JSON Schema at `docs/schema/risk-register-1.0.json`. | T-067, T-090 |
-| ☐ | T-093 | CycloneDX 1.6 downgrade export. | T-090 |
-| ☐ | T-094 | Executive PDF. | T-092 |
-| ☐ | T-095 | Asset register XLSX. | T-092 |
-| ☐ | T-096 | SARIF export + `qavach scan --fail-on <class>` CI mode. | T-090 |
-| ☐ | T-097 | Signed exports. ML-DSA-65 where the library allows; otherwise Ed25519 **with the limitation stated in the output**. | T-090 |
-| ☐ | T-098 | `docs/CUSTOM_PROPERTIES.md` documenting every `qavach:` property; CI fails on an undocumented namespace. | T-090 |
+| ☒ | T-090 ★ | CycloneDX 1.7 CBOM export. Occurrences → `evidence.occurrences[]`, provenance → `evidence.identity[].methods[]`. **No purl on `cryptographic-asset` components.** | T-022 |
+| ☒ | T-091 ★ | `make schema-check`, wired into CI: validate against the official schema **and** assert no `qavach:` risk fields appear outside the documented namespace. Invariant I5. | T-090, T-003 |
+| ☒ | T-092 ★ | Crypto Risk Register export + JSON Schema at `docs/schema/risk-register-1.0.json`. | T-067, T-090 |
+| ☒ | T-093 | CycloneDX 1.6 downgrade export. | T-090 |
+| ☐ | T-094 | **Not started (needs a PDF library dependency; on the cut list).** Executive PDF. | T-092 |
+| ☐ | T-095 | **Not started (needs an XLSX library dependency; first on the cut list).** Asset register XLSX. | T-092 |
+| ☒ | T-096 | SARIF export + `qavach scan --fail-on <class>` CI mode. | T-090 |
+| ☒ | T-097 | Signed exports. ML-DSA-65 where the library allows; otherwise Ed25519 **with the limitation stated in the output**. | T-090 |
+| ☒ | T-098 | `docs/CUSTOM_PROPERTIES.md` documenting every `qavach:` property; CI fails on an undocumented namespace. | T-090 |
 
 ---
 

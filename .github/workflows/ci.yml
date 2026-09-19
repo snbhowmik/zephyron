@@ -49,6 +49,9 @@ jobs:
       - name: Knowledge base is fresh (T-081)
         run: make knowledge-check
 
+      - name: CBOM schema and invariant I5 (T-091)
+        run: make schema-check
+
       - name: make lint
         run: make lint
 

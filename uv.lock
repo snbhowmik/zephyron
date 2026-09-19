@@ -1482,6 +1482,12 @@ requires-dist = [
 name = "qavach-core"
 version = "0.1.0"
 source = { editable = "packages/core" }
+dependencies = [
+    { name = "cryptography" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "cryptography", specifier = ">=46" }]
 
 [[package]]
 name = "qavach-sandbox"
