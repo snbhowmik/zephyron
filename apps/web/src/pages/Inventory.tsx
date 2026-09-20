@@ -124,6 +124,18 @@ export function Inventory() {
             several systems.
           </span>
         </div>
+        {Object.keys(facets.system ?? {}).length > 0 &&
+        Object.keys(facets.system ?? {}).every((k) => k === "unassigned" || k === "") ? (
+          <div
+            className="mb-3 rounded-md border border-sky-800 bg-sky-950/30 p-3 text-sm text-sky-100"
+            data-testid="no-systems-notice"
+          >
+            <strong>No system is bound to these assets.</strong> Their finding classes are real, but
+            urgency needs business context (criticality, data retention), so every band reads
+            &ldquo;Coverage gap&rdquo;. That is a missing input, not an unclassified algorithm.
+            Import a systems file under <em>New scan</em> and re-scan to get urgency and a roadmap.
+          </div>
+        ) : null}
         <div className="overflow-x-auto rounded-lg border border-slate-800">
           <table className="w-full text-sm" data-testid="inventory-table">
             <thead className="bg-slate-900 text-left text-xs uppercase tracking-wide text-slate-400">

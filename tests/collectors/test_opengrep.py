@@ -48,9 +48,9 @@ def _sarif() -> dict[str, Any]:
 
 
 def test_rule_pack_stays_within_the_note_3_3_budget() -> None:
-    # 14 breadth rules for languages the AST scanners miss, plus 2 JVM string-literal
-    # rules added on evidence from a real scan (jasypt: the algorithm is a constant).
-    assert 10 <= len(RULES) <= 16
+    # 14 breadth rules for languages the AST scanners miss, then evidence-driven additions from
+    # real scans: 2 JVM literal rules (jasypt), 12 Go and 11 Python call rules (kubescape, erpnext).
+    assert 10 <= len(RULES) <= 40
 
 
 def test_every_rule_has_algorithm_metadata_and_ascii_only_text() -> None:

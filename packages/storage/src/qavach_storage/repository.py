@@ -471,6 +471,18 @@ class Repository:
                 select(m.RiskScoreRow).where(m.RiskScoreRow.asset_id.in_(ids))
             ):
                 scores.setdefault(sc.asset_id, []).append(sc)
+        observed: set[str] = set()
+        if ids:  # any evidence other than a bare dependency is observed usage
+            observed = set(
+                self.s.scalars(
+                    select(m.OccurrenceRow.asset_id)
+                    .where(
+                        m.OccurrenceRow.asset_id.in_(ids),
+                        m.OccurrenceRow.confidence != int(ConfidenceTier.DEPENDENCY),
+                    )
+                    .distinct()
+                )
+            )
         suppressed = self.suppressed_keys(datetime.now(UTC))
         items = [
             {
@@ -485,7 +497,7 @@ class Repository:
                 "disputed": r.disputed,
                 "occurrences": occurrence_counts.get(r.id, 0),
                 "suppressed": r.identity_key in suppressed,
-                "capability_only": r.concluded_tier <= int(ConfidenceTier.DEPENDENCY),
+                "capability_only": r.id not in observed,
                 "certificate": r.certificate_json,
                 "scores": [
                     {

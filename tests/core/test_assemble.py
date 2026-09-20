@@ -293,3 +293,18 @@ def test_a_stored_adjudication_is_applied_reported_and_the_dispute_resolved() ->
     assert all(d.resolved for d in resolved.disputes) and {
         c.value for d in resolved.disputes for c in d.claims
     } == {"gcm", "cbc"}
+
+
+def test_capability_only_means_only_a_dependency_was_seen_never_a_call_site() -> None:
+    """DEPENDENCY (60) outranks AST (50) and PATTERN (30) numerically, so judging by the
+    maximum tier called observed call sites "capability only". It is judged over every
+    occurrence instead."""
+    from qavach_core.model.asset import is_capability_only
+    from qavach_core.model.enums import ConfidenceTier as T
+
+    assert is_capability_only([T.DEPENDENCY, T.DEPENDENCY])
+    assert not is_capability_only([T.PATTERN])
+    assert not is_capability_only([T.AST])
+    assert not is_capability_only([T.DEPENDENCY, T.PATTERN])  # a dependency AND a call site
+    assert not is_capability_only([T.DEPENDENCY, T.RUNTIME])
+    assert not is_capability_only([])

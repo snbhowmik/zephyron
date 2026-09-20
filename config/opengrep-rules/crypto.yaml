@@ -1,4 +1,4 @@
-# T-037 / NOTE.md section 3.3: the breadth tier. Sixteen rules - deliberately not
+# T-037 / NOTE.md section 3.3: the breadth tier. Thirty-nine rules - deliberately not
 # more. Opengrep matches API *names*; it cannot tell a live call from a test
 # fixture or a comment, so findings are PATTERN confidence and the false
 # positives are handled by the confidence tier and dispute mechanism, not by
@@ -154,3 +154,220 @@ rules:
     pattern-regex: '"(?:MD2|MD5|SHA-?1|DES|DESede|TripleDES|RC2|RC4|ARCFOUR)"'
     metadata:
       qavach_name_regex: '"(MD2|MD5|SHA-?1|DES|DESede|TripleDES|RC2|RC4|ARCFOUR)"'
+
+  # --- Go standard library (found by scanning kubescape: 23 files use crypto/*, and no
+  # scanner covers Go source - cbomkit-lib and cdxgen do not detect it, so all that was
+  # reported was dependency-level capability from Syft). Usage patterns, not imports:
+  # an unused import is not a use. ---
+
+  - id: qavach.go.md5
+    languages: [go]
+    severity: WARNING
+    message: MD5 via crypto/md5
+    pattern-either:
+      - pattern: md5.New()
+      - pattern: md5.Sum(...)
+    metadata: {qavach_algorithm: MD5, qavach_primitive: hash}
+
+  - id: qavach.go.sha1
+    languages: [go]
+    severity: WARNING
+    message: SHA-1 via crypto/sha1
+    pattern-either:
+      - pattern: sha1.New()
+      - pattern: sha1.Sum(...)
+    metadata: {qavach_algorithm: SHA-1, qavach_primitive: hash}
+
+  - id: qavach.go.sha256
+    languages: [go]
+    severity: INFO
+    message: SHA-256 via crypto/sha256
+    pattern-either:
+      - pattern: sha256.New()
+      - pattern: sha256.Sum256(...)
+    metadata: {qavach_algorithm: SHA-256, qavach_primitive: hash}
+
+  - id: qavach.go.sha512
+    languages: [go]
+    severity: INFO
+    message: SHA-512 via crypto/sha512
+    pattern-either:
+      - pattern: sha512.New()
+      - pattern: sha512.Sum512(...)
+    metadata: {qavach_algorithm: SHA-512, qavach_primitive: hash}
+
+  - id: qavach.go.des
+    languages: [go]
+    severity: WARNING
+    message: DES via crypto/des
+    pattern-either:
+      - pattern: des.NewCipher(...)
+    metadata: {qavach_algorithm: DES, qavach_primitive: block-cipher}
+
+  - id: qavach.go.3des
+    languages: [go]
+    severity: WARNING
+    message: 3DES via crypto/des
+    pattern-either:
+      - pattern: des.NewTripleDESCipher(...)
+    metadata: {qavach_algorithm: 3DES, qavach_primitive: block-cipher}
+
+  - id: qavach.go.rc4
+    languages: [go]
+    severity: WARNING
+    message: RC4 via crypto/rc4
+    pattern-either:
+      - pattern: rc4.NewCipher(...)
+    metadata: {qavach_algorithm: RC4, qavach_primitive: stream-cipher}
+
+  - id: qavach.go.aes
+    languages: [go]
+    severity: INFO
+    message: AES via crypto/aes
+    pattern-either:
+      - pattern: aes.NewCipher(...)
+    metadata: {qavach_algorithm: AES, qavach_primitive: block-cipher}
+
+  - id: qavach.go.rsa
+    languages: [go]
+    severity: INFO
+    message: RSA via crypto/rsa
+    pattern-either:
+      - pattern: rsa.GenerateKey(...)
+      - pattern: rsa.EncryptOAEP(...)
+      - pattern: rsa.EncryptPKCS1v15(...)
+      - pattern: rsa.SignPKCS1v15(...)
+      - pattern: rsa.SignPSS(...)
+      - pattern: rsa.VerifyPKCS1v15(...)
+    metadata: {qavach_algorithm: RSA, qavach_primitive: signature}
+
+  - id: qavach.go.ecdsa
+    languages: [go]
+    severity: INFO
+    message: ECDSA via crypto/ecdsa
+    pattern-either:
+      - pattern: ecdsa.GenerateKey(...)
+      - pattern: ecdsa.Sign(...)
+      - pattern: ecdsa.SignASN1(...)
+      - pattern: ecdsa.Verify(...)
+    metadata: {qavach_algorithm: ECDSA, qavach_primitive: signature}
+
+  - id: qavach.go.ed25519
+    languages: [go]
+    severity: INFO
+    message: Ed25519 via crypto/ed25519
+    pattern-either:
+      - pattern: ed25519.GenerateKey(...)
+      - pattern: ed25519.Sign(...)
+      - pattern: ed25519.Verify(...)
+    metadata: {qavach_algorithm: EdDSA, qavach_primitive: signature}
+
+  - id: qavach.go.hmac
+    languages: [go]
+    severity: INFO
+    message: HMAC via crypto/hmac
+    pattern-either:
+      - pattern: hmac.New(...)
+    metadata: {qavach_algorithm: HMAC, qavach_primitive: mac}
+
+  # --- Python (cbomkit-lib is the AST engine for Python, but it crashed on erpnext
+  # (a converter exception inside the tool), leaving Python with no source-level
+  # detection at all; these are the fallback for the same high-value calls). ---
+
+  - id: qavach.py.md5
+    languages: [python]
+    severity: WARNING
+    message: MD5 via hashlib
+    pattern-either:
+      - pattern: hashlib.md5(...)
+    metadata: {qavach_algorithm: MD5, qavach_primitive: hash}
+
+  - id: qavach.py.sha1
+    languages: [python]
+    severity: WARNING
+    message: SHA-1 via hashlib
+    pattern-either:
+      - pattern: hashlib.sha1(...)
+    metadata: {qavach_algorithm: SHA-1, qavach_primitive: hash}
+
+  - id: qavach.py.sha256
+    languages: [python]
+    severity: INFO
+    message: SHA-256 via hashlib
+    pattern-either:
+      - pattern: hashlib.sha256(...)
+    metadata: {qavach_algorithm: SHA-256, qavach_primitive: hash}
+
+  - id: qavach.py.sha512
+    languages: [python]
+    severity: INFO
+    message: SHA-512 via hashlib
+    pattern-either:
+      - pattern: hashlib.sha512(...)
+    metadata: {qavach_algorithm: SHA-512, qavach_primitive: hash}
+
+  - id: qavach.py.blake2
+    languages: [python]
+    severity: INFO
+    message: BLAKE2 via hashlib
+    pattern-either:
+      - pattern: hashlib.blake2b(...)
+      - pattern: hashlib.blake2s(...)
+    metadata: {qavach_algorithm: BLAKE2, qavach_primitive: hash}
+
+  - id: qavach.py.hmac
+    languages: [python]
+    severity: INFO
+    message: HMAC via the hmac module
+    pattern-either:
+      - pattern: hmac.new(...)
+    metadata: {qavach_algorithm: HMAC, qavach_primitive: mac}
+
+  - id: qavach.py.pycryptodome-weak
+    languages: [python]
+    severity: WARNING
+    message: DES/RC4/Blowfish via a Crypto.Cipher module
+    pattern-either:
+      - pattern: DES.new(...)
+    metadata: {qavach_algorithm: DES, qavach_primitive: block-cipher}
+
+  - id: qavach.py.pycryptodome-3des
+    languages: [python]
+    severity: WARNING
+    message: 3DES via Crypto.Cipher.DES3
+    pattern-either:
+      - pattern: DES3.new(...)
+    metadata: {qavach_algorithm: 3DES, qavach_primitive: block-cipher}
+
+  - id: qavach.py.pycryptodome-rc4
+    languages: [python]
+    severity: WARNING
+    message: RC4 via Crypto.Cipher.ARC4
+    pattern-either:
+      - pattern: ARC4.new(...)
+    metadata: {qavach_algorithm: RC4, qavach_primitive: stream-cipher}
+
+  - id: qavach.py.pycryptodome-aes
+    languages: [python]
+    severity: INFO
+    message: AES via Crypto.Cipher.AES
+    pattern-either:
+      - pattern: AES.new(...)
+    metadata: {qavach_algorithm: AES, qavach_primitive: block-cipher}
+
+  - id: qavach.py.rsa
+    languages: [python]
+    severity: INFO
+    message: RSA key generation
+    pattern-either:
+      - pattern: rsa.generate_private_key(...)
+      - pattern: RSA.generate(...)
+    metadata: {qavach_algorithm: RSA, qavach_primitive: signature}
+
+  - id: qavach.py.ec
+    languages: [python]
+    severity: INFO
+    message: Elliptic-curve key generation
+    pattern-either:
+      - pattern: ec.generate_private_key(...)
+    metadata: {qavach_algorithm: ECDSA, qavach_primitive: signature}

@@ -8,6 +8,7 @@ I4 — confidence is never averaged, conflicts are never silently resolved).
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -68,3 +69,14 @@ class CryptoAsset:
             raise ValueError("CryptoAsset must have at least one occurrence")
         if self.disputed and not self.disputes:
             raise ValueError("CryptoAsset.disputed=True requires at least one Dispute")
+
+
+def is_capability_only(tiers: Iterable[ConfidenceTier]) -> bool:
+    """True when *all* the evidence for an asset is that a dependency is present (a
+    library that CAN do this), so nothing was seen being used. Any other evidence - an
+    AST or pattern match in source, a runtime observation, an artefact - is observed
+    usage, however weak. Judged over the occurrences, never over `concluded_from`
+    (the maximum tier): DEPENDENCY outranks AST and PATTERN numerically, so a maximum
+    would call a call-site finding "capability only"."""
+    seen = list(tiers)
+    return bool(seen) and all(t is ConfidenceTier.DEPENDENCY for t in seen)

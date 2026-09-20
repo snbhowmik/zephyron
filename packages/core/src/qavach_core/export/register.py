@@ -28,8 +28,8 @@ from enum import Enum
 from typing import Any
 
 from qavach_core.export.cbom import bom_ref
-from qavach_core.model.asset import CryptoAsset
-from qavach_core.model.enums import ConfidenceTier, CryptoFunction, FindingClass
+from qavach_core.model.asset import CryptoAsset, is_capability_only
+from qavach_core.model.enums import CryptoFunction, FindingClass
 from qavach_core.recommend import Recommendation
 from qavach_core.risk import AssetRiskScore
 from qavach_core.roadmap import Roadmap
@@ -84,7 +84,7 @@ def register_entry(item: RegisterInput, roadmap: Roadmap | None = None) -> dict[
         "outcome": score.outcome,
         "reason": score.reason,
         "disputed": asset.disputed,
-        "capability_only": asset.concluded_from <= ConfidenceTier.DEPENDENCY,
+        "capability_only": is_capability_only(o.confidence for o in asset.occurrences),
         "mosca": None,
         "expected_value": None,
         "z_effective": None,
