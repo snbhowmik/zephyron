@@ -232,7 +232,7 @@ console commands.
 | ☐ | T-123 | `make bundle` — air-gap offline tarball of pinned images plus the knowledge base. | T-006 |
 | ☐ | T-124 | Helm chart in `deploy/helm/`. | T-123 |
 | ☐ | T-125 | `docs/ARCHITECTURE_DECISIONS.md` — promote `NOTE.md §7` entries into full ADRs. | — |
-| ☐ | T-126 | Load test to NFR-01/02/03. | T-120 |
+| ◐ | T-126 | **NFR-02 measured and met** (`tests/test_load_nfr02.py`: 50,000 distinct certificate assets reconciled in 1.1 s and scored in 1.0 s — 2.1 s vs the 60 s limit; in-memory, excludes persistence). **NFR-01 (100k-LOC discovery < 10 min) is unmeasured** — it needs the Dockerised scanners. **NFR-03 (5,000-node roadmap graph interactive) is unmeasured** — the roadmap core is tested at 5,000 units, the Cytoscape view has only been looked at with 8 nodes. | T-120 |
 
 ---
 
