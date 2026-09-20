@@ -10,6 +10,8 @@ Configuration is environment-only (nothing secret is ever read from a file):
   has real data to show. Demo data is labelled as such by the API
   (`/api/v1/meta`); it is never presented as a live scan.
 
+* `QAVACH_REDIS_URL`     if set, scans are queued to RQ and run by a separate worker
+  (`python -m qavach_worker`); unset, they run on an in-process thread pool.
 * `QAVACH_AGENT_CA_DIR`  where the agent-credential CA key lives (created on first
   enrolment, mode 0600). Default `dist/agent-ca`.
 * `QAVACH_API_TOKEN`     if set (>= 16 chars), every route but `/api/v1/meta`
@@ -19,66 +21,19 @@ Configuration is environment-only (nothing secret is ever read from a file):
 
 from __future__ import annotations
 
-import dataclasses
-import json
 import os
-import shutil
-from datetime import UTC, date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Any
 
-import yaml
 from fastapi.middleware.cors import CORSMiddleware
 from qavach_collectors import CollectorRegistry
-from qavach_core.normalize import AliasTable, CryptographyRegistry
-from qavach_core.pipeline import AssembleKnowledge, FamilyFunctions
-from qavach_core.policy import PolicySnapshot
-from qavach_core.recommend import PqcKnowledge
-from qavach_core.risk import ClassificationRules
 from qavach_storage import Repository, create_all, make_engine, schema_drift, session_factory
-from qavach_worker import Deps
-from qavach_worker.registry import build_central_registry
+from qavach_worker.config import load_deps, production_deps
 
 from qavach_api.agent_ca import AgentCA
 from qavach_api.app import AppState, create_app
 from qavach_api.auth import BearerAuth
-
-POLICY_DOCS = (
-    "z_scenarios",
-    "regulatory_deadlines",
-    "scoring",
-    "risk_tolerance",
-    "migration_effort",
-    "retention_defaults",
-)
-
-
-def _yaml(path: Path) -> Any:
-    return yaml.safe_load(path.read_text())
-
-
-def load_deps(config: Path, registry: CollectorRegistry) -> Deps:
-    knowledge = config / "knowledge"
-    return Deps(
-        registry=registry,
-        knowledge=AssembleKnowledge(
-            registry=CryptographyRegistry.from_dict(
-                json.loads(
-                    (knowledge / "cdx-crypto-registry" / "cryptography-defs.json").read_text()
-                )
-            ),
-            aliases=AliasTable.from_dict(_yaml(knowledge / "aliases.yaml")),
-            rules=ClassificationRules.from_dict(_yaml(knowledge / "classification_rules.yaml")),
-            family_functions=FamilyFunctions.from_dict(_yaml(knowledge / "family_functions.yaml")),
-        ),
-        policy=PolicySnapshot.from_documents(
-            {n: _yaml(config / "policy" / f"{n}.yaml") for n in POLICY_DOCS}
-        ),
-        pqc=PqcKnowledge.from_documents(
-            _yaml(knowledge / "pqc_alternatives.yaml"), _yaml(knowledge / "performance.yaml")
-        ),
-        clock=lambda: datetime.now(UTC),
-    )
 
 
 def build_app() -> Any:
@@ -120,23 +75,24 @@ def build_app() -> Any:
             "(tests/fixtures/scanner-output/); no live scanning happens."
         )
     else:
-        deps = load_deps(config, registry)
-        central = build_central_registry(
-            config,
-            registry=deps.knowledge.registry,
-            aliases=deps.knowledge.aliases,
-            engine_available=shutil.which("docker") is not None
-            or shutil.which("podman") is not None,
-        )
-        # the same CollectorRegistry object the deps hold is not reused: rebuild deps
-        deps = dataclasses.replace(deps, registry=central.registry)
-        meta["collectors"] = sorted(c.name for c in central.registry)
-        meta["collectors_skipped"] = central.skipped
+        deps, skipped = production_deps(config)
+        meta["collectors"] = sorted(c.name for c in deps.registry)
+        meta["collectors_skipped"] = skipped
 
     ca_dir = Path(os.environ.get("QAVACH_AGENT_CA_DIR", root / "dist" / "agent-ca"))
+    redis_url = os.environ.get("QAVACH_REDIS_URL")
+    enqueue = None
+    if redis_url:
+        from qavach_worker.queue import enqueue_scan
+
+        def enqueue(payload: dict[str, Any]) -> None:  # noqa: F811
+            enqueue_scan(redis_url, payload)
+
+        meta["queue"] = "rq"
     state = AppState(
         session_factory=session_factory(engine),
         deps=deps,
+        enqueue=enqueue,
         agent_ca=lambda: AgentCA.load_or_create(ca_dir),
     )
     app = create_app(state)

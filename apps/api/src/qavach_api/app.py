@@ -44,7 +44,8 @@ from qavach_core.export import (
 from qavach_core.pipeline import diff_entries
 from qavach_core.policy import PolicyError
 from qavach_storage import AssetFilter, Repository, models
-from qavach_worker import Deps, ProgressEvent, ScanRequest, run_scan, simulate
+from qavach_worker import STAGES, Deps, ProgressEvent, ScanRequest, run_scan, simulate
+from qavach_worker.jobs import to_payload
 from qavach_worker.simulate import warm_simulation_cache
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -107,6 +108,9 @@ class AppState:
     agent_ca: Callable[[], AgentCA] | None = None
     """Lazily builds the agent CA (`None`: agent enrolment not configured)."""
     replay_guard: ReplayGuard = field(default_factory=ReplayGuard)
+    enqueue: Callable[[dict[str, Any]], None] | None = None
+    """Set when scans run in a separate RQ worker: progress then comes from the
+    persisted stages, since the in-process hub cannot see another process."""
 
 
 class ScanBody(BaseModel):
@@ -152,6 +156,33 @@ def get_repo(st: StateDep) -> Iterator[Repository]:
 
 
 RepoDep = Annotated[Repository, Depends(get_repo)]
+
+
+def stage_events(st: AppState, scan_id: str, sent: int) -> tuple[list[dict[str, Any]], bool]:
+    """Progress for a scan run by another process, derived from the stages
+    `run_scan` persists: a `started` and then a `finished`/`failed` event per stage,
+    in pipeline order. `done` once the scan is terminal and everything was sent."""
+    with st.session_factory() as session:
+        scan = Repository(session).get_scan(scan_id)
+        stages = (scan.stages_json or {}) if scan else {}
+        terminal = bool(scan and scan.status in {"complete", "partial", "failed"})
+    events: list[dict[str, Any]] = []
+    for name in STAGES:
+        info = stages.get(name)
+        if not info:
+            continue
+        events.append({"stage": name, "status": "started", "collector": None, "detail": None})
+        if info.get("status") in {"finished", "failed"}:
+            events.append(
+                {
+                    "stage": name,
+                    "status": info["status"],
+                    "collector": None,
+                    "detail": info.get("detail") or info.get("error"),
+                }
+            )
+    new = events[sent:]
+    return new, terminal and not new
 
 
 def create_app(state: AppState) -> FastAPI:
@@ -207,7 +238,10 @@ def create_app(state: AppState) -> FastAPI:
                 except Exception:  # noqa: BLE001 - recorded on the scan by run_scan
                     st.hub.finish(scan_id)
 
-        st.runner(job)
+        if st.enqueue is not None:
+            st.enqueue(to_payload(request))
+        else:
+            st.runner(job)
         return {"scan_id": scan_id, "status": "queued"}
 
     @app.get(f"{API_PREFIX}/scans")
@@ -267,7 +301,10 @@ def create_app(state: AppState) -> FastAPI:
         sent = 0
         try:
             for _ in range(60 * 20):  # bounded: 60 s at 50 ms
-                events, done = st.hub.snapshot(scan_id, sent)
+                if st.enqueue is not None:
+                    events, done = stage_events(st, scan_id, sent)
+                else:
+                    events, done = st.hub.snapshot(scan_id, sent)
                 for e in events:
                     await ws.send_json(e)
                 sent += len(events)

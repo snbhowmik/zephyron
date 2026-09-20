@@ -60,3 +60,21 @@ def test_credentialed_and_agent_only_collectors_are_never_registered_centrally()
     c = build(image_id=lambda tag: "sha256:" + "c" * 64)
     for n in ("cloud.aws", "ad.adcs", "tls.store", "hsm.evidence", "artefact.deployed"):
         assert n not in names(c) and n in c.skipped
+
+
+def test_a_scan_request_survives_the_queue_payload_round_trip() -> None:
+    from datetime import date
+
+    from qavach_collectors import Target, TargetType
+    from qavach_worker import ScanRequest
+    from qavach_worker.jobs import from_payload, to_payload
+
+    original = ScanRequest(
+        target=Target(type=TargetType.REPOSITORY, ref="/r", options={"cmd": "x"}),
+        scan_id="s1",
+        z_scenario="aggressive",
+        as_of=date(2026, 9, 20),
+        capacity_per_quarter=4,
+        actor="api",
+    )
+    assert from_payload(to_payload(original)) == original

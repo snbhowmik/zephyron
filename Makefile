@@ -12,12 +12,17 @@ sync: ## Install the whole Python workspace + JS workspace into local envs.
 	uv sync
 	pnpm install
 
-dev: ## postgres + redis + minio (--wait for health), then API :8000 and web :5173
+DEV_DB ?= postgresql+psycopg://qavach:qavach_dev_only@localhost:5432/qavach
+DEV_REDIS ?= redis://localhost:6379/0
+
+dev: ## postgres + redis + minio, migrate, then API :8000 + RQ worker + web :5173 (Postgres, RQ)
 	$(COMPOSE) up -d --wait postgres redis minio
 	@echo "postgres/redis/minio are up and healthy."
-	@echo "API :8000 and web :5173 — Ctrl-C stops both."
+	cd packages/storage && QAVACH_DATABASE_URL=$(DEV_DB) uv run alembic upgrade head
+	@echo "API :8000, worker, web :5173 — Ctrl-C stops all."
 	@trap 'kill 0' INT TERM EXIT; \
-	uv run uvicorn qavach_api.main:app --port 8000 & \
+	QAVACH_DATABASE_URL=$(DEV_DB) QAVACH_REDIS_URL=$(DEV_REDIS) uv run uvicorn qavach_api.main:app --port 8000 & \
+	QAVACH_DATABASE_URL=$(DEV_DB) QAVACH_REDIS_URL=$(DEV_REDIS) uv run python -m qavach_worker & \
 	pnpm --filter web dev --port 5173 & \
 	wait
 
