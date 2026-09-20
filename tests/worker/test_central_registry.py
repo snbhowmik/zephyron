@@ -78,3 +78,26 @@ def test_a_scan_request_survives_the_queue_payload_round_trip() -> None:
         actor="api",
     )
     assert from_payload(to_payload(original)) == original
+
+
+def test_a_pinned_ref_falls_back_to_the_bare_digest_on_a_host_loaded_from_a_bundle(
+    monkeypatch,  # type: ignore[no-untyped-def]
+) -> None:
+    """`docker load` restores the image but not its `repo@sha256:` name; the bare
+    `sha256:<digest>` names the same bytes (containerd image store) and the sandbox
+    accepts it. If the digest is not local either, the original ref is kept."""
+    import qavach_worker.registry as reg
+
+    digest = "a" * 64
+    pinned = f"ghcr.io/x/y@sha256:{digest}"
+
+    def local(present: set[str]):  # type: ignore[no-untyped-def]
+        return lambda ref, engine="docker": ref if ref in present else None
+
+    monkeypatch.setattr(reg, "local_image_id", local({pinned}))
+    assert reg.resolve_local_ref(pinned) == pinned  # normal host: name resolves
+    monkeypatch.setattr(reg, "local_image_id", local({f"sha256:{digest}"}))
+    assert reg.resolve_local_ref(pinned) == f"sha256:{digest}"  # bundle-loaded host
+    monkeypatch.setattr(reg, "local_image_id", local(set()))
+    assert reg.resolve_local_ref(pinned) == pinned  # not present at all: unchanged
+    assert reg.resolve_local_ref("qavach/x:dev") == "qavach/x:dev"  # not a digest pin

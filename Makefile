@@ -70,6 +70,9 @@ scanners-pull: ## pull pinned scanner container images
 demo: ## real recorded scanner output through every layer; validates the CBOM (T-120)
 	uv run python scripts/demo.py
 
+bundle: ## offline air-gap tarball: images + config + checksums (ARGS="--dry-run" to list; --only X to filter)
+	uv run python scripts/bundle.py $(ARGS)
+
 preflight: ## is this host ready? git, container engine, openssl, workspace, images (add ARGS="--install" to see the fix)
 	uv run python scripts/preflight.py $(ARGS)
 
