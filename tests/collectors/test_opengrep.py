@@ -48,13 +48,15 @@ def _sarif() -> dict[str, Any]:
 
 
 def test_rule_pack_stays_within_the_note_3_3_budget() -> None:
-    assert 10 <= len(RULES) <= 15
+    # 14 breadth rules for languages the AST scanners miss, plus 2 JVM string-literal
+    # rules added on evidence from a real scan (jasypt: the algorithm is a constant).
+    assert 10 <= len(RULES) <= 16
 
 
 def test_every_rule_has_algorithm_metadata_and_ascii_only_text() -> None:
     raw = (ROOT / "config/opengrep-rules/crypto.yaml").read_bytes()
     raw.decode("ascii")  # Opengrep reads rules with the process locale
-    assert all(r.algorithm for r in RULES.values())
+    assert all(r.algorithm or r.name_regex for r in RULES.values())
 
 
 def test_recorded_real_sarif_maps_to_pattern_claims() -> None:
@@ -156,5 +158,55 @@ def test_real_image_finds_planted_crypto_in_five_languages_and_nothing_in_benign
     )
     assert not result.partial, result.errors
     got = {(c.locus.path, c.locus.offset, c.name) for c in result.claims}  # type: ignore[union-attr]
-    assert got == EXPECTED
+    # the JVM literal rules also (correctly) see `MessageDigest.getInstance("MD5")` in Legacy.java
+    assert got == EXPECTED | {("src/main/java/Legacy.java", 7, "MD5")}
     assert not any(p == "benign.c" for p, _, _ in got)
+
+
+def test_a_literal_rule_takes_the_algorithm_name_from_the_matched_snippet() -> None:
+    """Found scanning a real repository (jasypt): the algorithm is a string literal
+    the AST scanners never see. The rule declares a regex; the claim's name is the
+    literal as written, which the JCA grammar later splits into its algorithms."""
+    from qavach_collectors.source_scan.opengrep import claims_from_sarif, load_rules
+
+    rules = load_rules(
+        {
+            "rules": [
+                {
+                    "id": "qavach.jvm.lit",
+                    "metadata": {"qavach_name_regex": '"(PBEWith\\w+)"'},
+                }
+            ]
+        }
+    )
+
+    def result(snippet: str) -> dict:  # type: ignore[type-arg]
+        return {
+            "ruleId": "opt.qavach.rules.qavach.jvm.lit",
+            "locations": [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": "/target/A.java"},
+                        "region": {"startLine": 7, "snippet": {"text": snippet}},
+                    }
+                }
+            ],
+        }
+
+    claims, errors = claims_from_sarif(
+        {"runs": [{"results": [result('  x = "PBEWithMD5AndDES";'), result("no literal here")]}]},
+        rules,
+    )
+    assert [c.name for c in claims] == ["PBEWithMD5AndDES"]
+    assert claims[0].locus.offset == 7 and claims[0].confidence.name == "PATTERN"
+    assert len(errors) == 1 and "no algorithm name" in errors[0].message  # reported, not dropped
+
+
+def test_a_rule_needs_an_algorithm_or_a_name_regex_and_a_bad_regex_fails_at_load() -> None:
+    import pytest
+    from qavach_collectors.source_scan.opengrep import load_rules
+
+    with pytest.raises(ValueError, match="qavach_algorithm"):
+        load_rules({"rules": [{"id": "r", "metadata": {}}]})
+    with pytest.raises(Exception):  # noqa: B017,PT011 - re.error
+        load_rules({"rules": [{"id": "r", "metadata": {"qavach_name_regex": "("}}]})

@@ -30,6 +30,7 @@ it reads rule files with the process locale, so the image sets `C.UTF-8`.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -69,6 +70,8 @@ class OpengrepRule:
     algorithm: str
     primitive: str | None
     parameter_set: str | None
+    name_regex: str | None = None
+    """If set, the claim's name is group 1 of this regex over the matched snippet."""
 
 
 def load_rules(document: dict[str, Any]) -> dict[str, OpengrepRule]:
@@ -77,14 +80,18 @@ def load_rules(document: dict[str, Any]) -> dict[str, OpengrepRule]:
     rules: dict[str, OpengrepRule] = {}
     for entry in document["rules"]:
         metadata = entry.get("metadata") or {}
-        algorithm = metadata.get("qavach_algorithm")
-        if not algorithm:
+        name_regex = metadata.get("qavach_name_regex")
+        algorithm = metadata.get("qavach_algorithm") or ("" if name_regex else None)
+        if algorithm is None:
             raise ValueError(f"rule {entry.get('id')!r} has no qavach_algorithm metadata")
+        if name_regex:
+            re.compile(str(name_regex))  # a bad pattern in the rule pack is a bug: fail at load
         rules[str(entry["id"])] = OpengrepRule(
             id=str(entry["id"]),
             algorithm=str(algorithm),
             primitive=metadata.get("qavach_primitive"),
             parameter_set=metadata.get("qavach_parameter"),
+            name_regex=str(name_regex) if name_regex else None,
         )
     return rules
 
@@ -125,11 +132,26 @@ def claims_from_sarif(
                         )
                     )
                     continue
+                name = rule.algorithm
+                if rule.name_regex:
+                    # The rule matched an algorithm *string literal*: the name is what the
+                    # source says (`"PBEWithMD5AndDES"`), taken from the matched snippet.
+                    snippet = ((physical.get("region") or {}).get("snippet") or {}).get("text", "")
+                    found = re.search(rule.name_regex, str(snippet))
+                    if not found:
+                        errors.append(
+                            CollectorError(
+                                message=f"{rule.id}: no algorithm name in the matched snippet",
+                                fatal=False,
+                            )
+                        )
+                        continue
+                    name = found.group(1)
                 claims.append(
                     RawClaim(
                         # LOCUS-01: FileLocus.offset carries the line number.
                         locus=FileLocus(path=_relative_path(uri), offset=line),
-                        name=rule.algorithm,
+                        name=name,
                         primitive=rule.primitive,
                         parameter_set=rule.parameter_set,
                         detection_method="pattern",

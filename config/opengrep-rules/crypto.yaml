@@ -1,4 +1,4 @@
-# T-037 / NOTE.md section 3.3: the breadth tier. Fourteen rules - deliberately not
+# T-037 / NOTE.md section 3.3: the breadth tier. Sixteen rules - deliberately not
 # more. Opengrep matches API *names*; it cannot tell a live call from a test
 # fixture or a comment, so findings are PATTERN confidence and the false
 # positives are handled by the confidence tier and dispute mechanism, not by
@@ -131,3 +131,26 @@ rules:
       - pattern: RsaPrivateKey::new(...)
       - pattern: rsa::RsaPrivateKey::new(...)
     metadata: {qavach_algorithm: RSA}
+
+  # --- Java-family algorithm *string literals* (found by scanning a real repository:
+  # jasypt defines "PBEWithMD5AndDES" as a constant and passes it through configuration,
+  # so neither AST scanner sees a literal Cipher.getInstance call). The claim's name is
+  # the literal itself, taken from the matched snippet via `qavach_name_regex`; the JCA
+  # grammar (normalize/jca.py) then splits a compound name into its algorithms. Still the
+  # low-confidence breadth tier: a literal in a comment or a test is a false positive
+  # that the confidence tier and dispute mechanism absorb.
+  - id: qavach.jvm.jca-compound-name-literal
+    languages: [java, kotlin, scala]
+    severity: INFO
+    message: JCA compound algorithm name as a string literal
+    pattern-regex: '"(?:PBEWith[A-Za-z0-9_]+And[A-Za-z0-9_]+|PBKDF2With[A-Za-z0-9_]+|[A-Za-z0-9]+with(?:RSA|DSA|ECDSA)[A-Za-z0-9]*|Hmac(?:MD5|SHA)[A-Za-z0-9/-]*|(?:AES|AES_\d+|DES|DESede|RSA|Blowfish|RC2|RC4)/[A-Z0-9]+/[A-Za-z0-9-]+)"'
+    metadata:
+      qavach_name_regex: '"((?:PBEWith[A-Za-z0-9_]+And[A-Za-z0-9_]+|PBKDF2With[A-Za-z0-9_]+|[A-Za-z0-9]+with(?:RSA|DSA|ECDSA)[A-Za-z0-9]*|Hmac(?:MD5|SHA)[A-Za-z0-9/-]*|(?:AES|AES_\d+|DES|DESede|RSA|Blowfish|RC2|RC4)/[A-Z0-9]+/[A-Za-z0-9-]+))"'
+
+  - id: qavach.jvm.weak-algorithm-name-literal
+    languages: [java, kotlin, scala]
+    severity: WARNING
+    message: A broken algorithm name (MD2, MD5, SHA-1, DES, DESede, RC2, RC4) as a string literal
+    pattern-regex: '"(?:MD2|MD5|SHA-?1|DES|DESede|TripleDES|RC2|RC4|ARCFOUR)"'
+    metadata:
+      qavach_name_regex: '"(MD2|MD5|SHA-?1|DES|DESede|TripleDES|RC2|RC4|ARCFOUR)"'
