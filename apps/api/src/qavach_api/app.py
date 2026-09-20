@@ -45,6 +45,7 @@ from qavach_core.pipeline import diff_entries
 from qavach_core.policy import PolicyError
 from qavach_storage import AssetFilter, Repository, models
 from qavach_worker import Deps, ProgressEvent, ScanRequest, run_scan, simulate
+from qavach_worker.simulate import warm_simulation_cache
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -202,6 +203,7 @@ def create_app(state: AppState) -> FastAPI:
             with st.session_factory() as session:
                 try:
                     run_scan(session, request, st.deps, st.hub.publish)
+                    warm_simulation_cache(session, scan_id, st.deps.knowledge)
                 except Exception:  # noqa: BLE001 - recorded on the scan by run_scan
                     st.hub.finish(scan_id)
 

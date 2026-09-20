@@ -159,6 +159,18 @@ def _prepared(
     return rows, False
 
 
+def warm_simulation_cache(session: Session, scan_id: str, knowledge: AssembleKnowledge) -> bool:
+    """Decode a finished scan's rows ahead of the first simulate call, so the first
+    slider move is a repeat call (~0.55 s at 50k) rather than a cold one (~1.9 s).
+    Best-effort: returns False for a scan that is missing or not finished."""
+    repo = Repository(session)
+    scan = repo.get_scan(scan_id)
+    if scan is None:
+        return False
+    _, _ = _prepared(repo, scan, knowledge)
+    return scan.status in {"complete", "partial"} and scan.finished is not None
+
+
 def clear_simulation_cache() -> None:
     with _cache_lock:
         _cache.clear()

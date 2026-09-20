@@ -508,3 +508,14 @@ def test_a_bad_field_override_is_refused(client: TestClient, target: str) -> Non
         ).status_code
         == 422
     )
+
+
+def test_the_first_simulate_after_a_scan_is_served_from_the_prewarmed_row_cache(
+    client: TestClient,
+) -> None:
+    from qavach_worker.simulate import clear_simulation_cache
+
+    clear_simulation_cache()
+    sid = _scan(client)
+    r = client.post("/api/v1/policy/simulate", json={"scan_id": sid, "z_scenario": "aggressive"})
+    assert r.status_code == 200 and r.json()["rows_from_cache"] is True

@@ -228,7 +228,7 @@ console commands.
 |---|---|---|---|
 | ☑ | T-120 ★ | `make demo` — real recorded scanner output through every layer, schema-validated, and now the UI over it (`QAVACH_DEMO=1`); the planted AES-128, MD5, DAG cycle and the root-CA-vs-TLS-leaf pair are present. **The pair is a planted synthetic chain** (committed fixtures, real parser) — resolved via OQ-20 for the TLS-endpoint path. | Phase 9 |
 | ☐ | T-121 | **Ground-truth accuracy run** (OQ-05): 3–5 well-known OSS repos, hand-labelled, measured precision/recall published in `docs/ACCURACY.md`. **Make no accuracy claim anywhere until this exists.** | T-120 |
-| ☐ | T-122 | Threat-model review against `SECURITY.md`; verify the sandbox actually blocks egress and privilege escalation with a deliberate escape test. | T-031 |
+| ◐ | T-122 | **Sandbox behaviour verified** (`tests/sandbox/test_escape.py`, 9 tests against a real container): no egress by IP/DNS/host/route, target mount read-only, rootfs read-only, tmpfs non-executable, `CapEff=0`, `NoNewPrivs=1`, seccomp on, mount/userns/chown/su refused, no docker socket or host paths, host env not leaked, fork bomb stopped by `--pids-limit`, plus a control that the egress probe *does* see the network when allowed. **Not done:** the written threat-model review of `SECURITY.md`, memory-limit OOM behaviour, the build-resolution egress proxy (§3.1), and escape attempts through a real scanner image rather than busybox. | T-031 |
 | ☐ | T-123 | `make bundle` — air-gap offline tarball of pinned images plus the knowledge base. | T-006 |
 | ☐ | T-124 | Helm chart in `deploy/helm/`. | T-123 |
 | ☐ | T-125 | `docs/ARCHITECTURE_DECISIONS.md` — promote `NOTE.md §7` entries into full ADRs. | — |
