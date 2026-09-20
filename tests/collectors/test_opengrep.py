@@ -158,8 +158,11 @@ def test_real_image_finds_planted_crypto_in_five_languages_and_nothing_in_benign
     )
     assert not result.partial, result.errors
     got = {(c.locus.path, c.locus.offset, c.name) for c in result.claims}  # type: ignore[union-attr]
-    # the JVM literal rules also (correctly) see `MessageDigest.getInstance("MD5")` in Legacy.java
-    assert got == EXPECTED | {("src/main/java/Legacy.java", 7, "MD5")}
+    # the JVM literal rules also (correctly) see the algorithm strings in Legacy.java
+    assert got == EXPECTED | {
+        ("src/main/java/Legacy.java", 6, "DES/ECB/PKCS5Padding"),
+        ("src/main/java/Legacy.java", 7, "MD5"),
+    }
     assert not any(p == "benign.c" for p, _, _ in got)
 
 
