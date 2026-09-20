@@ -156,7 +156,7 @@ progress, and the inventory endpoint returns faceted results in under 500ms for
 | ☒ | T-073 ★ | FastAPI surface per `ARCH.md §12`. Transport only — zero business logic in route handlers. | T-072 |
 | ☑ | T-073a ★ | Agent enrollment/registry backend: single-use token issuance, mTLS credential exchange, `agents`/`agent_runs` persistence (`ARCH.md §3a`, §11), spec-polling and results-ingestion endpoints. | T-070, T-073, T-031a |
 | ☒ | T-074 ★ | WebSocket progress with per-collector status events. | T-072 |
-| ☐ | T-075 ★ | **Surface built and tested; the 1 s budget is NOT yet met end to end** — scoring 50k assets takes 0.75 s, but loading them from SQLite pushes the total to 1.66 s (Postgres not measured). `POST /policy/simulate` — pure re-score over stored assets, no re-scan. Must return in under 1s for 50k assets; this powers the Mosca explorer. | T-068, T-073 |
+| ◐ | T-075 ★ | **Partly met.** `policy/simulate` at 50k stored assets on SQLite: **repeat calls ~0.55 s (budget met — this is the slider-drag case)**; the **first, cold call is ~1.8–2.0 s (budget NOT met)** because decoding 50k rows dominates. Decoded rows are cached per finished scan (keyed on scan id + finish time). Postgres unmeasured. | T-070, T-073 |
 | ☒ | T-076 | Suppressions with reason and expiry; persist across scans; write to the audit log. | T-071 |
 | ☒ | T-077 | Audit log for every mutating action. | T-071 |
 

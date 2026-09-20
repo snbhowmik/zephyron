@@ -15,8 +15,10 @@ a different type: a typo must not silently simulate the unchanged policy.
 from __future__ import annotations
 
 import copy
+import threading
 import time
-from collections import Counter
+from collections import Counter, OrderedDict
+from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
@@ -70,10 +72,96 @@ def apply_overrides(base: PolicySnapshot, overrides: dict[str, Any]) -> PolicySn
     return PolicySnapshot.from_documents(documents)
 
 
-def _lifetime(certificate: dict[str, Any] | None, as_of: date) -> float | None:
-    """Recomputed from `not_after` against the *simulated* as-of date, not the
-    scan's: moving the date is one of the things a simulation is for."""
-    return CertificateFacts.from_dict(certificate).remaining_years(as_of) if certificate else None
+@dataclass(frozen=True, slots=True)
+class _Prepared:
+    """One stored asset with everything that does not depend on the candidate
+    policy already decoded (locus JSON parsed, enums built, the also-quantum-
+    vulnerable classification done, the stored baseline attached)."""
+
+    asset_id: str
+    family: str
+    finding: FindingClass
+    also_qv: bool
+    identity: AssetIdentity
+    function: CryptoFunction | None
+    authority: MigrationAuthority
+    loci: tuple[Any, ...]
+    certificate: CertificateFacts | None
+    targets: tuple[tuple[str | None, str, str | None, float | None], ...]
+    """`(system_id, stored band, stored outcome, stored gap)` per scored pair."""
+
+
+_CACHE_SLOTS = 4
+_cache: OrderedDict[tuple[Any, ...], tuple[_Prepared, ...]] = OrderedDict()
+_cache_lock = threading.Lock()
+
+
+def _prepare(repo: Repository, scan_id: str, knowledge: AssembleKnowledge) -> list[_Prepared]:
+    stored = repo.stored_bands(scan_id)
+    out: list[_Prepared] = []
+    for row in repo.simulation_rows(scan_id):
+        finding = FindingClass(row["finding_class"])
+        row_id = row["id"]
+        found = []
+        for system_id in row["systems"] or [None]:
+            baseline = stored.get((row_id, system_id or ""))
+            if baseline is not None:
+                found.append((system_id, baseline[0], baseline[1], baseline[2]))
+        targets = tuple(found)
+        if not targets:
+            continue
+        out.append(
+            _Prepared(
+                asset_id=row["id"],
+                family=row["family"],
+                finding=finding,
+                also_qv=(
+                    finding is FindingClass.CLASSICAL_WEAK
+                    and classify(
+                        row["family"], row["parameter_set"], rules=knowledge.rules
+                    ).also_quantum_vulnerable
+                ),
+                identity=AssetIdentity(
+                    kind=IdentityKind(row["identity_kind"]), key=row["identity_key"]
+                ),
+                function=CryptoFunction(row["function"]) if row["function"] else None,
+                authority=MigrationAuthority(row["migration_authority"]),
+                loci=tuple(locus_from_dict(x) for x in row["loci"]),
+                certificate=(
+                    CertificateFacts.from_dict(row["certificate"]) if row["certificate"] else None
+                ),
+                targets=targets,
+            )
+        )
+    return out
+
+
+def _prepared(
+    repo: Repository, scan: Any, knowledge: AssembleKnowledge
+) -> tuple[tuple[_Prepared, ...], bool]:
+    """`(rows, from_cache)`. A finished scan's assets, bindings and stored scores
+    never change, and a slider drag calls `simulate` repeatedly on one scan, so the
+    decoded rows are kept per scan (a few at a time). The key includes the scan's
+    finish time, so a re-run scan can never be served stale."""
+    if scan.status not in {"complete", "partial"} or scan.finished is None:
+        return tuple(_prepare(repo, scan.id, knowledge)), False
+    key = (scan.id, scan.finished.isoformat(), id(knowledge))
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit is not None:
+            _cache.move_to_end(key)
+            return hit, True
+    rows = tuple(_prepare(repo, scan.id, knowledge))
+    with _cache_lock:
+        _cache[key] = rows
+        while len(_cache) > _CACHE_SLOTS:
+            _cache.popitem(last=False)
+    return rows, False
+
+
+def clear_simulation_cache() -> None:
+    with _cache_lock:
+        _cache.clear()
 
 
 def simulate(
@@ -97,8 +185,7 @@ def simulate(
 
     systems_list, _ = repo.load_systems()
     systems: dict[str, System] = {s.id: s for s in systems_list}
-    rows = repo.simulation_rows(scan_id)
-    stored = repo.stored_bands(scan_id)
+    prepared, from_cache = _prepared(repo, scan, knowledge)
 
     start = time.perf_counter()
     memo = ScoreMemo()
@@ -109,32 +196,19 @@ def simulate(
     changed = 0
     scored = 0
 
-    for row in rows:
-        family = row["family"]
-        finding = FindingClass(row["finding_class"])
-        also_qv = (
-            finding is FindingClass.CLASSICAL_WEAK
-            and classify(
-                family, row["parameter_set"], rules=knowledge.rules
-            ).also_quantum_vulnerable
-        )
-        loci = tuple(locus_from_dict(x) for x in row["loci"])
-        for system_id in row["systems"] or [None]:
-            key = (row["id"], system_id or "")
-            if key not in stored:
-                continue
+    for row in prepared:
+        lifetime = row.certificate.remaining_years(as_of) if row.certificate else None
+        for system_id, old_band, old_outcome, old_gap in row.targets:
             result = score_asset(
                 AssetRiskInput(
-                    identity=AssetIdentity(
-                        kind=IdentityKind(row["identity_kind"]), key=row["identity_key"]
-                    ),
-                    finding_class=finding,
-                    also_quantum_vulnerable=also_qv,
-                    function=CryptoFunction(row["function"]) if row["function"] else None,
-                    authority=MigrationAuthority(row["migration_authority"]),
-                    loci=loci,
+                    identity=row.identity,
+                    finding_class=row.finding,
+                    also_quantum_vulnerable=row.also_qv,
+                    function=row.function,
+                    authority=row.authority,
+                    loci=row.loci,
                     system=systems.get(system_id) if system_id else None,
-                    artefact_lifetime_years=_lifetime(row.get("certificate"), as_of),
+                    artefact_lifetime_years=lifetime,
                 ),
                 policy=candidate,
                 as_of=as_of,
@@ -142,7 +216,6 @@ def simulate(
                 explain=False,
                 memo=memo,
             )
-            old_band, old_outcome, old_gap = stored[key]
             scored += 1
             baseline_bands[old_band] += 1
             candidate_bands[result.band.value] += 1
@@ -160,8 +233,8 @@ def simulate(
                     (
                         abs(new_gap - old_gap),
                         {
-                            "asset_id": row["id"],
-                            "family": family,
+                            "asset_id": row.asset_id,
+                            "family": row.family,
                             "system_id": system_id,
                             "band": {"from": old_band, "to": result.band.value},
                             "gap_years": {"from": round(old_gap, 3), "to": round(new_gap, 3)},
@@ -186,5 +259,6 @@ def simulate(
         "transitions": dict(sorted(transitions.items())),
         "top_movers": [m for _, m in movers[:top]],
         "scoring_ms": elapsed_ms,
+        "rows_from_cache": from_cache,
         "heuristics_notice": HEURISTIC_NOTICE,
     }

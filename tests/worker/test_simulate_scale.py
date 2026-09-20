@@ -109,21 +109,44 @@ def _seed(n: int):  # type: ignore[no-untyped-def]
             for i in range(n)
         ],
     )
+    Repository(session).set_status("big", "complete", now=NOW)
     session.commit()
     return session
 
 
 def test_simulating_fifty_thousand_stored_assets_end_to_end() -> None:
+    from qavach_worker.simulate import clear_simulation_cache
+
+    clear_simulation_cache()
     session = _seed(50_000)
     start = time.perf_counter()
-    result = simulate(session, "big", overrides={}, z_scenario="aggressive", knowledge=KNOWLEDGE)
-    total = time.perf_counter() - start
-    assert result["scored"] == 50_000
-    print(
-        f"\nsimulate over 50,000 stored assets: {total:.2f}s end to end "  # noqa: T201
-        f"({result['scoring_ms']:.0f} ms of it scoring)"
+    cold = simulate(session, "big", overrides={}, z_scenario="aggressive", knowledge=KNOWLEDGE)
+    cold_s = time.perf_counter() - start
+    start = time.perf_counter()
+    warm = simulate(session, "big", overrides={}, z_scenario="conservative", knowledge=KNOWLEDGE)
+    warm_s = time.perf_counter() - start
+    assert cold["scored"] == warm["scored"] == 50_000
+    assert cold["rows_from_cache"] is False and warm["rows_from_cache"] is True
+    print(  # noqa: T201
+        f"\nsimulate over 50,000 stored assets: cold {cold_s:.2f}s, repeat (slider drag) "
+        f"{warm_s:.2f}s ({warm['scoring_ms']:.0f} ms of it scoring)"
     )
-    assert total < 15, (
-        f"{total:.1f}s"
-    )  # loose CI ceiling; the measured figure is recorded in NOTE.md
-    assert result["scoring_ms"] < 2500
+    # loose CI ceilings; the measured figures are recorded in NOTE.md
+    assert cold_s < 15 and warm_s < 5
+    assert warm_s < cold_s
+
+
+def test_a_cached_simulation_is_never_served_for_a_rerun_scan() -> None:
+    """The cache key includes the scan's finish time: re-running (or changing) a
+    scan must not return the previous run's rows."""
+    from qavach_worker.simulate import clear_simulation_cache
+
+    clear_simulation_cache()
+    session = _seed(200)
+    first = simulate(session, "big", overrides={}, z_scenario=None, knowledge=KNOWLEDGE)
+    again = simulate(session, "big", overrides={}, z_scenario=None, knowledge=KNOWLEDGE)
+    assert first["rows_from_cache"] is False and again["rows_from_cache"] is True
+    Repository(session).set_status("big", "complete", now=NOW.replace(hour=5))
+    session.commit()
+    third = simulate(session, "big", overrides={}, z_scenario=None, knowledge=KNOWLEDGE)
+    assert third["rows_from_cache"] is False
