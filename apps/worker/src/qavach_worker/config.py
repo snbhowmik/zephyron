@@ -19,6 +19,7 @@ from qavach_core.recommend import PqcKnowledge
 from qavach_core.risk import ClassificationRules
 
 from qavach_worker.pipeline import Deps
+from qavach_worker.workspace import Workspace
 
 POLICY_DOCS = (
     "z_scenarios",
@@ -73,10 +74,15 @@ def production_deps(config: Path) -> tuple[Deps, dict[str, str]]:
         aliases=deps.knowledge.aliases,
         engine_available=shutil.which("docker") is not None or shutil.which("podman") is not None,
     )
+    workspace = Workspace(
+        Path(os.environ.get("QAVACH_WORKSPACE_DIR", config.parent / "dist" / "workspace")),
+        group=os.environ.get("QAVACH_WORKSPACE_GROUP"),
+    )
     return Deps(
         registry=central.registry,
         knowledge=deps.knowledge,
         policy=deps.policy,
         pqc=deps.pqc,
         clock=lambda: datetime.now(UTC),
+        workspace=workspace,
     ), central.skipped

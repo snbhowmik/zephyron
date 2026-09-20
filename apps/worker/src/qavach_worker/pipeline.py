@@ -55,6 +55,8 @@ from qavach_core.roadmap import MigrationUnit, Roadmap
 from qavach_storage import Repository
 from sqlalchemy.orm import Session
 
+from qavach_worker.workspace import Checkout, CloneError, Workspace, redact_url
+
 STAGES = ("collect", "assemble", "context", "risk", "recommend", "roadmap", "persist")
 
 _TARGET_KEY_KIND = {
@@ -87,6 +89,8 @@ class ScanRequest:
     as_of: date | None = None
     capacity_per_quarter: int | None = None
     actor: str = "system"
+    allow_build_resolution: bool = False
+    """SECURITY.md §3.1: let cdxgen run the target's build (network on). Off by default."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +100,7 @@ class Deps:
     policy: PolicySnapshot
     pqc: PqcKnowledge
     clock: Callable[[], datetime]
+    workspace: Workspace | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +108,13 @@ class ScanOutcome:
     scan_id: str
     status: str
     summary: dict[str, Any]
+
+
+def _error_text(exc: Exception) -> str:
+    """What the operator sees. A clone failure carries a useful, already-redacted
+    message; anything else is the exception type only (never its text, which could
+    hold a path or a secret)."""
+    return f"CloneError: {exc}" if isinstance(exc, CloneError) else type(exc).__name__
 
 
 def binding_key_for(target: Target) -> BindingKey | None:
@@ -166,13 +178,31 @@ def run_scan(
     if repo.get_scan(scan_id) is None:  # the API pre-creates it so the id is pollable at once
         repo.create_scan(
             scan_id=scan_id,
-            target_ref=request.target.ref,
+            target_ref=redact_url(request.target.ref),
             policy=deps.policy,
             z_scenario=scenario,
             as_of=as_of.isoformat(),
             now=now,
         )
-    repo.audit(request.actor, "scan.start", scan_id, now=now, detail={"target": request.target.ref})
+    repo.audit(
+        request.actor,
+        "scan.start",
+        scan_id,
+        now=now,
+        detail={"target": redact_url(request.target.ref)},
+    )
+    if request.allow_build_resolution:
+        repo.audit(
+            request.actor,
+            "scan.build-resolution-enabled",
+            scan_id,
+            now=now,
+            detail={
+                "warning": "the target's own build (pom.xml, package.json postinstall, "
+                "build.gradle...) runs inside the sandbox WITH network access; QAVACH does not "
+                "yet restrict egress to package registries (SECURITY.md §3.1)"
+            },
+        )
     stages: dict[str, dict[str, Any]] = {}
 
     def stage_started(name: str) -> float:
@@ -195,17 +225,23 @@ def run_scan(
         emit(ProgressEvent(scan_id, name, "finished", detail=detail))
 
     current = "collect"
+    checkouts: list[Checkout] = []
     try:
         # ---- collect -----------------------------------------------------------
         t0 = stage_started("collect")
+        target = request.target
+        if deps.workspace is not None and deps.workspace.wants(target):
+            checkout = deps.workspace.clone(target.ref, scan_id)
+            checkouts.append(checkout)
+            target = Target(type=target.type, ref=str(checkout.path), options=target.options)
         claims: list[ClaimInput] = []
         collector_status: dict[str, str] = {}
-        ctx = RunContext(scan_run_id=scan_id)
-        for collector in deps.registry.for_target(request.target):
+        ctx = RunContext(scan_run_id=scan_id, allow_build_resolution=request.allow_build_resolution)
+        for collector in deps.registry.for_target(target):
             emit(ProgressEvent(scan_id, "collect", "started", collector=collector.name))
             started = time.perf_counter()
             try:
-                result = collector.collect(request.target, ctx)
+                result = collector.collect(target, ctx)
             except Exception as exc:  # noqa: BLE001 - a collector must never take the scan down
                 repo.add_collector_run(
                     scan_id,
@@ -281,7 +317,7 @@ def run_scan(
         t0 = stage_started("context")
         systems, raw_bindings = repo.load_systems()
         system_by_id = {s.id: s for s in systems}
-        target_key = binding_key_for(request.target)
+        target_key = binding_key_for(request.target)  # the URL, not the temp checkout
         binding = bind_assets(
             {
                 a.identity: [
@@ -417,6 +453,7 @@ def run_scan(
         else:
             status = "complete"
         summary: dict[str, Any] = {
+            "build_resolution": request.allow_build_resolution,
             "assets": len(assets),
             "claims": len(claims),
             "by_finding_class": dict(sorted(classes.items())),
@@ -446,12 +483,12 @@ def run_scan(
         stages[current] = {
             **stages.get(current, {}),
             "status": "failed",
-            "error": f"{type(exc).__name__}",
+            "error": _error_text(exc),
         }
         if repo.get_scan(scan_id) is None:
             repo.create_scan(
                 scan_id=scan_id,
-                target_ref=request.target.ref,
+                target_ref=redact_url(request.target.ref),
                 policy=deps.policy,
                 z_scenario=scenario,
                 as_of=as_of.isoformat(),
@@ -462,11 +499,15 @@ def run_scan(
             "failed",
             now=deps.clock(),
             stages=stages,
-            summary={"error_stage": current, "error": type(exc).__name__},
+            summary={"error_stage": current, "error": _error_text(exc)},
         )
         session.commit()
-        emit(ProgressEvent(scan_id, current, "failed", detail=type(exc).__name__))
+        emit(ProgressEvent(scan_id, current, "failed", detail=_error_text(exc)))
         raise
+    finally:
+        for checkout in checkouts:
+            if deps.workspace is not None:
+                deps.workspace.remove(checkout)
 
 
 __all__ = [

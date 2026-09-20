@@ -1,0 +1,59 @@
+# What a machine that runs QAVACH needs, with the package names per distro family.
+# Consumed by scripts/preflight.py. Names are the distribution package names as of
+# Debian 12 / Ubuntu 22.04+ and RHEL 9 / Fedora 40+; they are NOT verified on every
+# release - preflight prints the command, and `--install --yes` is the only thing
+# that runs it.
+#
+# The scanners themselves (cdxgen, cbomkit, opengrep, syft, tracebom) run inside
+# their container images, which already carry their own language toolchains, so a
+# host needs none of the "build_tools" below in the default (containerised) mode.
+# Those are listed for the operators who run a builder directly on the host or who
+# need the same names for a golden image.
+
+required:
+  git:
+    why: clones the repositories named by git URLs into the workspace
+    command: git
+    deb: [git]
+    rpm: [git]
+  container_engine:
+    why: every sandboxed scanner runs in a container (Docker or Podman)
+    command: docker|podman
+    deb: [docker.io]           # or Docker CE from docker.com
+    rpm: [podman]              # RHEL/Fedora ship Podman; Docker CE is from docker.com
+  openssl:
+    why: the TLS endpoint collector shells out to `openssl s_client`
+    command: openssl
+    deb: [openssl]
+    rpm: [openssl]
+  ca_certificates:
+    why: HTTPS clones and registry pulls must verify certificates
+    command: null
+    file: /etc/ssl/certs/ca-certificates.crt|/etc/pki/tls/certs/ca-bundle.crt
+    deb: [ca-certificates]
+    rpm: [ca-certificates]
+
+recommended:
+  openssh_client:
+    why: ssh:// and git@host:path clones (deploy key or ssh-agent of the service account)
+    command: ssh
+    deb: [openssh-client]
+    rpm: [openssh-clients]
+  curl:
+    why: fetching release artefacts and health checks
+    command: curl
+    deb: [curl]
+    rpm: [curl]
+
+# Only for building on the host instead of in the cdxgen image.
+build_tools:
+  java_jdk:    { deb: [openjdk-21-jdk], rpm: [java-21-openjdk-devel] }
+  maven:       { deb: [maven],          rpm: [maven] }
+  gradle:      { deb: [gradle],         rpm: [] }            # no rpm in RHEL; use SDKMAN or the wrapper
+  nodejs:      { deb: [nodejs, npm],    rpm: [nodejs, npm] }
+  golang:      { deb: [golang-go],      rpm: [golang] }
+  python_dev:  { deb: [python3-dev, python3-pip], rpm: [python3-devel, python3-pip] }
+  c_toolchain: { deb: [build-essential], rpm: [gcc, gcc-c++, make] }
+  dotnet:      { deb: [dotnet-sdk-8.0], rpm: [dotnet-sdk-8.0] }
+  ruby:        { deb: [ruby-full],      rpm: [ruby, ruby-devel] }
+  rust:        { deb: [cargo],          rpm: [cargo] }

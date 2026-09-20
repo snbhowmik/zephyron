@@ -27,13 +27,36 @@ from pathlib import Path
 from typing import Any
 
 from fastapi.middleware.cors import CORSMiddleware
-from qavach_collectors import CollectorRegistry
+from qavach_collectors import CollectorRegistry, Target, TargetType
 from qavach_storage import Repository, create_all, make_engine, schema_drift, session_factory
 from qavach_worker.config import load_deps, production_deps
 
 from qavach_api.agent_ca import AgentCA
 from qavach_api.app import AppState, create_app
 from qavach_api.auth import BearerAuth
+
+
+def repository_ref_policy(workspace: Any) -> Any:
+    """A deployed QAVACH scans git URLs it clones itself. A bare filesystem path is
+    accepted only if it is inside the workspace or `QAVACH_ALLOW_LOCAL_PATHS=1`
+    (development), so the API cannot be asked to read arbitrary host directories."""
+    allow_local = os.environ.get("QAVACH_ALLOW_LOCAL_PATHS") == "1"
+
+    def check(ref: str) -> str | None:
+        if workspace is not None and workspace.wants(Target(TargetType.REPOSITORY, ref)):
+            return None
+        if allow_local:
+            return None
+        if workspace is not None:
+            path = Path(ref).resolve()
+            if workspace.root.resolve() in path.parents:
+                return None
+        return (
+            "a repository target must be a git URL (https://, ssh://, git@host:path); "
+            "local paths are refused unless QAVACH_ALLOW_LOCAL_PATHS=1"
+        )
+
+    return check
 
 
 def build_app() -> Any:
@@ -93,6 +116,7 @@ def build_app() -> Any:
         session_factory=session_factory(engine),
         deps=deps,
         enqueue=enqueue,
+        workspace_policy=None if demo else repository_ref_policy(deps.workspace),
         agent_ca=lambda: AgentCA.load_or_create(ca_dir),
     )
     app = create_app(state)

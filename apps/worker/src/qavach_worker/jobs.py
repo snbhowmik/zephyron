@@ -32,6 +32,7 @@ def to_payload(request: ScanRequest) -> dict[str, Any]:
         "as_of": request.as_of.isoformat() if request.as_of else None,
         "capacity_per_quarter": request.capacity_per_quarter,
         "actor": request.actor,
+        "allow_build_resolution": request.allow_build_resolution,
     }
 
 
@@ -47,6 +48,7 @@ def from_payload(payload: dict[str, Any]) -> ScanRequest:
         as_of=date.fromisoformat(payload["as_of"]) if payload.get("as_of") else None,
         capacity_per_quarter=payload.get("capacity_per_quarter"),
         actor=payload.get("actor", "worker"),
+        allow_build_resolution=bool(payload.get("allow_build_resolution", False)),
     )
 
 

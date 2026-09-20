@@ -70,6 +70,9 @@ scanners-pull: ## pull pinned scanner container images
 demo: ## real recorded scanner output through every layer; validates the CBOM (T-120)
 	uv run python scripts/demo.py
 
+preflight: ## is this host ready? git, container engine, openssl, workspace, images (add ARGS="--install" to see the fix)
+	uv run python scripts/preflight.py $(ARGS)
+
 demo-ui: ## the UI over the demo dataset: API :8000 (QAVACH_DEMO=1, SQLite, no Docker) + web :5173
 	@echo "Demo UI: http://localhost:5173  (recorded scanner output; a planted root-CA/leaf pair)"
 	@trap 'kill 0' INT TERM EXIT; \

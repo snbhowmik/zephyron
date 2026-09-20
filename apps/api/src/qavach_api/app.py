@@ -45,6 +45,7 @@ from qavach_storage import AssetFilter, Repository, models
 from qavach_worker import Deps, ScanRequest, run_scan, simulate
 from qavach_worker.jobs import to_payload
 from qavach_worker.simulate import warm_simulation_cache
+from qavach_worker.workspace import redact_url
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -76,6 +77,8 @@ class AppState:
     """Lazily builds the agent CA (`None`: agent enrolment not configured)."""
     replay_guard: ReplayGuard = field(default_factory=ReplayGuard)
     enqueue: Callable[[dict[str, Any]], None] | None = None
+    workspace_policy: Callable[[str], str | None] | None = None
+    """Returns a reason to refuse a repository reference, or None. Set outside demo mode."""
     """Set when scans run in a separate RQ worker process."""
 
 
@@ -88,6 +91,10 @@ class ScanBody(BaseModel):
     as_of: date | None = None
     capacity_per_quarter: int | None = Field(default=None, ge=1)
     options: dict[str, str] = Field(default_factory=dict)
+    allow_build_resolution: bool = Field(
+        default=False,
+        description="Let cdxgen run the target's build with network access (SECURITY.md §3.1).",
+    )
 
 
 class SuppressBody(BaseModel):
@@ -148,12 +155,16 @@ def create_app(state: AppState) -> FastAPI:
             st.deps.policy.node(f"z_scenarios.scenarios.{scenario}")
         except PolicyError as exc:
             raise HTTPException(422, f"unknown Z scenario {scenario!r}") from exc
+        if st.workspace_policy is not None and target_type is TargetType.REPOSITORY:
+            problem = st.workspace_policy(body.target_ref)
+            if problem:
+                raise HTTPException(422, problem)
         scan_id = str(uuid.uuid4())
         now = st.clock()
         as_of = body.as_of or now.date()
         repo.create_scan(
             scan_id=scan_id,
-            target_ref=body.target_ref,
+            target_ref=redact_url(body.target_ref),
             policy=st.deps.policy,
             z_scenario=scenario,
             as_of=as_of.isoformat(),
@@ -167,6 +178,7 @@ def create_app(state: AppState) -> FastAPI:
             as_of=as_of,
             capacity_per_quarter=body.capacity_per_quarter,
             actor="api",
+            allow_build_resolution=body.allow_build_resolution,
         )
 
         def job() -> None:

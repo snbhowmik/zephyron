@@ -22,14 +22,16 @@ const TARGETS = [
 
 export function NewScan() {
   const [target, setTarget] = useState("repository");
-  const [ref, setRef] = useState("github.com/acme/polyglot-payments");
+  const [ref, setRef] = useState("https://github.com/acme/polyglot-payments.git");
   const [csv, setCsv] = useState("");
+  const [build, setBuild] = useState(false);
   const [scanId, setScanId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const importSystems = useMutation({ mutationFn: () => api.importSystems(csv, "text/csv") });
   const start = useMutation({
-    mutationFn: () => api.startScan({ target_type: target, target_ref: ref }),
+    mutationFn: () =>
+      api.startScan({ target_type: target, target_ref: ref, allow_build_resolution: build }),
     onSuccess: (r) => setScanId(r.scan_id),
   });
 
@@ -120,6 +122,18 @@ export function NewScan() {
           className="w-full rounded-md bg-slate-800 p-2 font-mono text-xs ring-1 ring-slate-700"
         />
         <div className="mt-2 flex items-center gap-2">
+          {target === "repository" ? (
+            <label className="mb-3 flex items-start gap-2 text-xs text-slate-300">
+              <input type="checkbox" checked={build} onChange={(e) => setBuild(e.target.checked)} />
+              <span>
+                Let the scanner run this repository's own build (better dependency results).{" "}
+                <strong className="text-amber-300">
+                  This runs the repository's build scripts with network access.
+                </strong>{" "}
+                Off by default; it is recorded in the audit log.
+              </span>
+            </label>
+          ) : null}
           <Button disabled={!csv || importSystems.isPending} onClick={() => importSystems.mutate()}>
             Import systems
           </Button>

@@ -120,8 +120,12 @@ export const api = {
   policy: () => request<PolicyDoc>("/api/v1/policy"),
   simulate: (body: { scan_id: string; overrides: Record<string, unknown>; z_scenario?: string }) =>
     request<SimulateResult>("/api/v1/policy/simulate", json(body)),
-  startScan: (body: { target_type: string; target_ref: string; z_scenario?: string }) =>
-    request<{ scan_id: string; status: string }>("/api/v1/scans", json(body)),
+  startScan: (body: {
+    target_type: string;
+    target_ref: string;
+    z_scenario?: string;
+    allow_build_resolution?: boolean;
+  }) => request<{ scan_id: string; status: string }>("/api/v1/scans", json(body)),
   importSystems: (content: string, contentType: string) =>
     request<{
       imported: number;
