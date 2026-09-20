@@ -1,0 +1,62 @@
+"""The production collector registry registers only what can run, and says why not."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import demo  # noqa: E402
+from qavach_worker.registry import build_central_registry  # noqa: E402
+
+KNOWLEDGE, _POLICY, _PQC = demo.load_knowledge()
+CONFIG = ROOT / "config"
+
+
+def build(**kw):  # type: ignore[no-untyped-def]
+    return build_central_registry(
+        CONFIG, registry=KNOWLEDGE.registry, aliases=KNOWLEDGE.aliases, **kw
+    )
+
+
+def names(c) -> set[str]:  # type: ignore[no-untyped-def]
+    return {x.name for x in c.registry}
+
+
+def test_with_every_image_built_all_central_collectors_register() -> None:
+    c = build(image_id=lambda tag: "sha256:" + "a" * 64)
+    assert {
+        "source_scan.cdxgen",
+        "source_scan.opengrep",
+        "source_scan.cbomkit",
+        "sbom.syft",
+        "runtime.tracebom",
+        "container.theia",
+        "tls.endpoint",
+        "ssh.hostkey",
+        "ingest.cbom",
+        "binary.static",
+    } == names(c)
+
+
+def test_an_unbuilt_image_is_skipped_with_a_reason_not_registered_to_fail() -> None:
+    c = build(image_id=lambda tag: None if "opengrep" in tag else "sha256:" + "b" * 64)
+    assert "source_scan.opengrep" not in names(c)
+    assert "make build-images" in c.skipped["source_scan.opengrep"]
+    assert "source_scan.cdxgen" in names(c)
+
+
+def test_no_container_engine_leaves_only_the_network_and_file_collectors() -> None:
+    c = build(engine_available=False)
+    assert names(c) == {"tls.endpoint", "ssh.hostkey", "ingest.cbom", "binary.static"}
+    assert all(
+        "no container engine" in c.skipped[n]
+        for n in ("source_scan.cdxgen", "sbom.syft", "runtime.tracebom")
+    )
+
+
+def test_credentialed_and_agent_only_collectors_are_never_registered_centrally() -> None:
+    c = build(image_id=lambda tag: "sha256:" + "c" * 64)
+    for n in ("cloud.aws", "ad.adcs", "tls.store", "hsm.evidence", "artefact.deployed"):
+        assert n not in names(c) and n in c.skipped

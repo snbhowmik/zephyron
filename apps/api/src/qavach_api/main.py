@@ -19,8 +19,10 @@ Configuration is environment-only (nothing secret is ever read from a file):
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
+import shutil
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -35,6 +37,7 @@ from qavach_core.recommend import PqcKnowledge
 from qavach_core.risk import ClassificationRules
 from qavach_storage import Repository, create_all, make_engine, schema_drift, session_factory
 from qavach_worker import Deps
+from qavach_worker.registry import build_central_registry
 
 from qavach_api.agent_ca import AgentCA
 from qavach_api.app import AppState, create_app
@@ -118,6 +121,17 @@ def build_app() -> Any:
         )
     else:
         deps = load_deps(config, registry)
+        central = build_central_registry(
+            config,
+            registry=deps.knowledge.registry,
+            aliases=deps.knowledge.aliases,
+            engine_available=shutil.which("docker") is not None
+            or shutil.which("podman") is not None,
+        )
+        # the same CollectorRegistry object the deps hold is not reused: rebuild deps
+        deps = dataclasses.replace(deps, registry=central.registry)
+        meta["collectors"] = sorted(c.name for c in central.registry)
+        meta["collectors_skipped"] = central.skipped
 
     ca_dir = Path(os.environ.get("QAVACH_AGENT_CA_DIR", root / "dist" / "agent-ca"))
     state = AppState(
