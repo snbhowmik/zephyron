@@ -62,8 +62,15 @@ schema-check: ## CBOM valid against CycloneDX 1.7 offline, no risk data in it, r
 scanners-pull: ## pull pinned scanner container images
 	ENGINE=$(ENGINE) uv run python3 scripts/pull_scanners.py
 
-demo: ## real recorded scanner output through every layer; validates the CBOM (T-120, first cut)
+demo: ## real recorded scanner output through every layer; validates the CBOM (T-120)
 	uv run python scripts/demo.py
+
+demo-ui: ## the UI over the demo dataset: API :8000 (QAVACH_DEMO=1, SQLite, no Docker) + web :5173
+	@echo "Demo UI: http://localhost:5173  (recorded scanner output; a planted root-CA/leaf pair)"
+	@trap 'kill 0' INT TERM EXIT; \
+	QAVACH_DEMO=1 uv run uvicorn qavach_api.main:app --port 8000 & \
+	pnpm --filter web dev --port 5173 & \
+	wait
 
 build-images: ## build QAVACH-owned scanner images and print their content-addressed IDs
 	$(ENGINE) build -t qavach/cbomkit-lib:dev docker/cbomkit-lib

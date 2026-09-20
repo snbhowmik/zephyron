@@ -174,7 +174,9 @@ integration testing, CERT-In-empanelled VA/PT, supply-chain verification.
 git clone <repo> && cd qavach
 make dev              # postgres, redis, minio, API :8000, web :5173
 make scanners-pull    # pull pinned scanner images
-make demo             # seed the demo dataset
+make demo             # recorded scanner output -> validated CBOM + register (CLI)
+make demo-ui          # the same data in the UI, no Docker: http://localhost:5173
+# Set QAVACH_API_TOKEN (>=16 chars) to require a bearer token; the UI then asks for it.
 open http://localhost:5173
 ```
 
