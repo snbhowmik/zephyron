@@ -75,18 +75,63 @@ function CertificateCard({ c }: { c: CertificateFacts }) {
   );
 }
 
-function Reconciliation({ asset }: { asset: Detail }) {
+const PAGE_SIZES = [10, 20, 50, 100];
+
+function Reconciliation({
+  asset,
+  onPage,
+}: {
+  asset: Detail;
+  onPage: (page: number, size: number) => void;
+}) {
   const byTool = new Map<string, Occurrence[]>();
   for (const o of asset.occurrences)
     byTool.set(o.collector, [...(byTool.get(o.collector) ?? []), o]);
+  const toolCounts = Object.entries(asset.occurrence_by_tool);
   return (
     <Card data-testid="reconciliation">
       <CardTitle hint="never averaged — every claim is retained">Reconciliation</CardTitle>
       <p className="mb-3 text-lg">
-        <strong>1 asset</strong> · <strong>{asset.occurrences.length}</strong> occurrence(s) ·{" "}
-        <strong>{byTool.size}</strong> tool(s) · concluded from{" "}
+        <strong>1 asset</strong> · <strong>{asset.occurrence_total}</strong> occurrence(s) ·{" "}
+        <strong>{toolCounts.length}</strong> tool(s) · concluded from{" "}
         <Pill className="bg-slate-700 text-slate-100 ring-slate-500">{asset.concluded_tier}</Pill>
       </p>
+      <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+        <span>
+          Page {asset.occurrence_page} of {asset.occurrence_pages}
+        </span>
+        <label className="flex items-center gap-1">
+          per page
+          <select
+            className="rounded bg-slate-900 px-1 py-0.5 ring-1 ring-slate-700"
+            value={asset.occurrence_size}
+            onChange={(e) => onPage(1, Number(e.target.value))}
+          >
+            {PAGE_SIZES.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className="rounded px-2 py-0.5 ring-1 ring-slate-700 disabled:opacity-40"
+          disabled={asset.occurrence_page <= 1}
+          onClick={() => onPage(asset.occurrence_page - 1, asset.occurrence_size)}
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          className="rounded px-2 py-0.5 ring-1 ring-slate-700 disabled:opacity-40"
+          disabled={asset.occurrence_page >= asset.occurrence_pages}
+          onClick={() => onPage(asset.occurrence_page + 1, asset.occurrence_size)}
+        >
+          Next
+        </button>
+        <span>{toolCounts.map(([tool, n]) => `${tool}: ${n}`).join(" · ")}</span>
+      </div>
       <div className="grid gap-3 md:grid-cols-2">
         {[...byTool.entries()].map(([tool, occs]) => (
           <div key={tool} className="rounded-md border border-slate-800 p-3">
@@ -362,9 +407,11 @@ function Triage({ asset }: { asset: Detail }) {
 export function AssetDetail() {
   const { id } = useParams();
   const { scanId } = useScanId();
+  const [occ, setOcc] = useState({ page: 1, size: 20 });
   const asset = useQuery({
-    queryKey: ["asset", id],
-    queryFn: () => api.asset(id as string),
+    queryKey: ["asset", id, occ.page, occ.size],
+    queryFn: () => api.asset(id as string, occ.page, occ.size),
+    placeholderData: (previous) => previous,
     enabled: !!id,
   });
   if (asset.error) return <ErrorBox error={asset.error} />;
@@ -394,7 +441,7 @@ export function AssetDetail() {
         <p className="mt-1 text-sm text-slate-400">{styleFor(a.finding_class).copy}</p>
       </div>
       {a.certificate ? <CertificateCard c={a.certificate} /> : null}
-      <Reconciliation asset={a} />
+      <Reconciliation asset={a} onPage={(page, size) => setOcc({ page, size })} />
       <div className="grid gap-4 lg:grid-cols-2">
         {a.risk.map((entry) => (
           <Card key={entry.system_id ?? "unassigned"}>

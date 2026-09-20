@@ -1,8 +1,7 @@
 import { api, progressSocket } from "@/api/client";
-import type { ProgressEvent } from "@/api/types";
 import { Button, Card, CardTitle, ErrorBox, Pill, StubNotice } from "@/components/ui";
-import { useMutation } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 /** FR-601: the target-type selector. `supported` = what the current build can actually run. */
@@ -25,29 +24,38 @@ export function NewScan() {
   const [target, setTarget] = useState("repository");
   const [ref, setRef] = useState("github.com/acme/polyglot-payments");
   const [csv, setCsv] = useState("");
-  const [events, setEvents] = useState<ProgressEvent[]>([]);
   const [scanId, setScanId] = useState<string | null>(null);
-  const socket = useRef<WebSocket | null>(null);
+  const queryClient = useQueryClient();
 
   const importSystems = useMutation({ mutationFn: () => api.importSystems(csv, "text/csv") });
   const start = useMutation({
     mutationFn: () => api.startScan({ target_type: target, target_ref: ref }),
-    onSuccess: (r) => {
-      setScanId(r.scan_id);
-      setEvents([]);
-    },
+    onSuccess: (r) => setScanId(r.scan_id),
   });
 
+  // The server tells us one thing: the scan ended. A slow poll covers a dropped socket.
+  const scan = useQuery({
+    queryKey: ["scan-status", scanId],
+    queryFn: () => api.scan(scanId as string),
+    enabled: !!scanId,
+    refetchInterval: (q) =>
+      q.state.data && ["complete", "partial", "failed"].includes(q.state.data.status)
+        ? false
+        : 5000,
+  });
   useEffect(() => {
     if (!scanId) return;
     const ws = progressSocket(scanId);
-    socket.current = ws;
-    ws.onmessage = (m) => setEvents((prev) => [...prev, JSON.parse(m.data) as ProgressEvent]);
+    ws.onmessage = () => {
+      void queryClient.invalidateQueries({ queryKey: ["scan-status", scanId] });
+      void queryClient.invalidateQueries({ queryKey: ["scans"] });
+    };
     return () => ws.close();
-  }, [scanId]);
+  }, [scanId, queryClient]);
 
   const chosen = TARGETS.find((t) => t.value === target);
-  const done = events.some((e) => e.stage === "scan");
+  const status = scan.data?.status ?? "running";
+  const done = ["complete", "partial", "failed"].includes(status);
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -146,16 +154,19 @@ export function NewScan() {
 
       {scanId ? (
         <Card data-testid="progress">
-          <CardTitle hint={scanId.slice(0, 8)}>Live progress</CardTitle>
-          <ul className="space-y-1 font-mono text-xs">
-            {events.map((e, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: an append-only event log
-              <li key={i} className={e.status === "failed" ? "text-red-300" : "text-slate-300"}>
-                {e.collector ? `  ↳ ${e.collector}` : e.stage} — {e.status}
-                {e.detail ? ` (${e.detail})` : ""}
-              </li>
-            ))}
-          </ul>
+          <CardTitle hint={scanId.slice(0, 8)}>Scan</CardTitle>
+          {!done ? (
+            <p className="text-sm text-slate-300">
+              Running. Large repositories take minutes; you will be told here when it ends.
+            </p>
+          ) : (
+            <p
+              className={status === "failed" ? "text-sm text-red-300" : "text-sm text-emerald-300"}
+            >
+              Ended: {status}
+              {scan.data?.summary?.error ? ` (${String(scan.data.summary.error)})` : ""}
+            </p>
+          )}
           {done ? (
             <p className="mt-3 text-sm">
               <Link className="text-sky-400 underline" to={`/?scan=${scanId}`}>

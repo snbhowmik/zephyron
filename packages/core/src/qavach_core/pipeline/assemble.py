@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from typing import Any
 
@@ -40,6 +40,7 @@ from qavach_core.model.identity import AssetIdentity
 from qavach_core.model.locus import Locus
 from qavach_core.normalize.aliases import AliasTable
 from qavach_core.normalize.function import classify_function
+from qavach_core.normalize.jca import decompose_jca
 from qavach_core.normalize.registry import CryptographyRegistry
 from qavach_core.normalize.resolve import (
     RawAlgorithmClaim,
@@ -120,6 +121,8 @@ class AssembleResult:
     unresolved: tuple[str, ...]
     """Raw names that did not resolve to a family - already present in `assets`
     as `UNKNOWN`; listed here so a UI can show *what* was not understood."""
+    expanded_claims: int = 0
+    """Claims added by splitting Java compound names into their components."""
     adjudications: AdjudicationOutcome | None = None
     """What happened to each stored operator ruling on this re-merge: applied,
     reopened (new evidence / the code changed), orphaned or superseded - never
@@ -228,6 +231,37 @@ def _latest_certificate(group: Sequence[_Prepared]) -> CertificateFacts | None:
     return max(facts, key=lambda c: (c.not_after, c.sha256_fingerprint))
 
 
+def expand_jca_claims(
+    claims: Iterable[ClaimInput],
+) -> tuple[list[ClaimInput], int]:
+    """A Java compound name (`PBEWithMD5AndDES`, `SHA256withRSA`, `AES/ECB/...`) is
+    several algorithms; replace the claim by one claim per component, at the same
+    locus, so each gets its own finding and `AES/ECB` keeps its mode. Returns the
+    claims and how many extra claims the expansion added. A certificate claim or a
+    name outside the grammar passes through untouched (and stays UNKNOWN if the
+    resolver cannot place it - I8)."""
+    out: list[ClaimInput] = []
+    extra = 0
+    for claim in claims:
+        parts = decompose_jca(claim.name) if claim.name and claim.certificate is None else None
+        if not parts:
+            out.append(claim)
+            continue
+        extra += len(parts) - 1
+        for part in parts:
+            out.append(
+                replace(
+                    claim,
+                    name=part.name,
+                    primitive=part.primitive or claim.primitive,
+                    parameter_set=part.parameter_set or claim.parameter_set,
+                    mode=part.mode or claim.mode,
+                    padding=part.padding or claim.padding,
+                )
+            )
+    return out, extra
+
+
 def assemble(
     claims: Iterable[ClaimInput],
     knowledge: AssembleKnowledge,
@@ -235,7 +269,8 @@ def assemble(
     authority_for: AuthorityFor = _default_authority,
     adjudications: Sequence[Adjudication] = (),
 ) -> AssembleResult:
-    prepared = [_prepare(c, knowledge) for c in claims]
+    expanded, extra_claims = expand_jca_claims(claims)
+    prepared = [_prepare(c, knowledge) for c in expanded]
     by_identity: dict[AssetIdentity, list[_Prepared]] = defaultdict(list)
     for p in prepared:
         by_identity[p.identity].append(p)
@@ -329,6 +364,7 @@ def assemble(
         assets=tuple(assets),
         merges=merges,
         unresolved=tuple(sorted(unresolved)),
+        expanded_claims=extra_claims,
         adjudications=outcome,
     )
 

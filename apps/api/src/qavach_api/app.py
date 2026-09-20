@@ -19,9 +19,7 @@ Notes on what is and is not here (also in `NOTE.md`):
 from __future__ import annotations
 
 import asyncio
-import threading
 import uuid
-from collections import defaultdict
 from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -44,7 +42,7 @@ from qavach_core.export import (
 from qavach_core.pipeline import diff_entries
 from qavach_core.policy import PolicyError
 from qavach_storage import AssetFilter, Repository, models
-from qavach_worker import STAGES, Deps, ProgressEvent, ScanRequest, run_scan, simulate
+from qavach_worker import Deps, ScanRequest, run_scan, simulate
 from qavach_worker.jobs import to_payload
 from qavach_worker.simulate import warm_simulation_cache
 from sqlalchemy import select
@@ -56,38 +54,8 @@ from qavach_api.auth import websocket_subprotocol
 from qavach_api.reports import build_pdf, build_xlsx
 
 API_PREFIX = "/api/v1"
-
-
-class ProgressHub:
-    """Per-scan progress history with replay, so a client that connects after
-    the scan started still sees every event. Thread-safe: workers publish from
-    pool threads, WebSocket handlers read on the event loop."""
-
-    def __init__(self) -> None:
-        self._events: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        self._done: set[str] = set()
-        self._lock = threading.Lock()
-
-    def publish(self, event: ProgressEvent) -> None:
-        with self._lock:
-            self._events[event.scan_id].append(
-                {
-                    "stage": event.stage,
-                    "status": event.status,
-                    "collector": event.collector,
-                    "detail": event.detail,
-                }
-            )
-            if event.stage == "scan":
-                self._done.add(event.scan_id)
-
-    def snapshot(self, scan_id: str, start: int) -> tuple[list[dict[str, Any]], bool]:
-        with self._lock:
-            return list(self._events[scan_id][start:]), scan_id in self._done
-
-    def finish(self, scan_id: str) -> None:
-        with self._lock:
-            self._done.add(scan_id)
+SCAN_WAIT_SECONDS = 6 * 3600
+POLL_SECONDS = 2.0
 
 
 ScanRunner = Callable[[Callable[[], None]], None]
@@ -102,15 +70,13 @@ def threaded_runner(workers: int = 2) -> ScanRunner:
 class AppState:
     session_factory: sessionmaker[Session]
     deps: Deps
-    hub: ProgressHub = field(default_factory=ProgressHub)
     runner: ScanRunner = field(default_factory=threaded_runner)
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)  # noqa: E731
     agent_ca: Callable[[], AgentCA] | None = None
     """Lazily builds the agent CA (`None`: agent enrolment not configured)."""
     replay_guard: ReplayGuard = field(default_factory=ReplayGuard)
     enqueue: Callable[[dict[str, Any]], None] | None = None
-    """Set when scans run in a separate RQ worker: progress then comes from the
-    persisted stages, since the in-process hub cannot see another process."""
+    """Set when scans run in a separate RQ worker process."""
 
 
 class ScanBody(BaseModel):
@@ -156,33 +122,6 @@ def get_repo(st: StateDep) -> Iterator[Repository]:
 
 
 RepoDep = Annotated[Repository, Depends(get_repo)]
-
-
-def stage_events(st: AppState, scan_id: str, sent: int) -> tuple[list[dict[str, Any]], bool]:
-    """Progress for a scan run by another process, derived from the stages
-    `run_scan` persists: a `started` and then a `finished`/`failed` event per stage,
-    in pipeline order. `done` once the scan is terminal and everything was sent."""
-    with st.session_factory() as session:
-        scan = Repository(session).get_scan(scan_id)
-        stages = (scan.stages_json or {}) if scan else {}
-        terminal = bool(scan and scan.status in {"complete", "partial", "failed"})
-    events: list[dict[str, Any]] = []
-    for name in STAGES:
-        info = stages.get(name)
-        if not info:
-            continue
-        events.append({"stage": name, "status": "started", "collector": None, "detail": None})
-        if info.get("status") in {"finished", "failed"}:
-            events.append(
-                {
-                    "stage": name,
-                    "status": info["status"],
-                    "collector": None,
-                    "detail": info.get("detail") or info.get("error"),
-                }
-            )
-    new = events[sent:]
-    return new, terminal and not new
 
 
 def create_app(state: AppState) -> FastAPI:
@@ -233,10 +172,10 @@ def create_app(state: AppState) -> FastAPI:
         def job() -> None:
             with st.session_factory() as session:
                 try:
-                    run_scan(session, request, st.deps, st.hub.publish)
+                    run_scan(session, request, st.deps)
                     warm_simulation_cache(session, scan_id, st.deps.knowledge)
-                except Exception:  # noqa: BLE001 - recorded on the scan by run_scan
-                    st.hub.finish(scan_id)
+                except Exception:  # noqa: BLE001, S110 - recorded on the scan by run_scan
+                    pass
 
         if st.enqueue is not None:
             st.enqueue(to_payload(request))
@@ -292,32 +231,28 @@ def create_app(state: AppState) -> FastAPI:
 
     @app.websocket(f"{API_PREFIX}/scans/{{scan_id}}/progress")
     async def progress(ws: WebSocket, scan_id: str) -> None:
+        """Tells the client one thing: the scan has ended, and how. No per-stage
+        streaming and no worker connection - the scan runs elsewhere (a thread or
+        an RQ worker) and the only shared state is the database, which this reads
+        every couple of seconds. No time cap shorter than a scan can take; a client
+        that drops simply asks `GET /scans/{id}` instead."""
         st: AppState = ws.app.state.qavach
         with st.session_factory() as session:
             if Repository(session).get_scan(scan_id) is None:
                 await ws.close(code=4404)
                 return
         await ws.accept(subprotocol=websocket_subprotocol(ws.scope))
-        sent = 0
         try:
-            for _ in range(60 * 20):  # bounded: 60 s at 50 ms
-                if st.enqueue is not None:
-                    events, done = stage_events(st, scan_id, sent)
-                else:
-                    events, done = st.hub.snapshot(scan_id, sent)
-                for e in events:
-                    await ws.send_json(e)
-                sent += len(events)
-                if done and not events:
-                    break
+            for _ in range(int(SCAN_WAIT_SECONDS / POLL_SECONDS)):
                 with st.session_factory() as session:
                     scan = Repository(session).get_scan(scan_id)
-                    if scan and scan.status in {"complete", "partial", "failed"} and not events:
-                        st.hub.finish(scan_id)
-                await asyncio.sleep(0.05)
-            await ws.send_json(
-                {"stage": "scan", "status": "closed", "collector": None, "detail": None}
-            )
+                    status = scan.status if scan else "failed"
+                if status in {"complete", "partial", "failed"}:
+                    await ws.send_json({"stage": "scan", "status": status, "scan_id": scan_id})
+                    break
+                await asyncio.sleep(POLL_SECONDS)
+            else:
+                await ws.send_json({"stage": "scan", "status": "still-running", "scan_id": scan_id})
         finally:
             try:
                 await ws.close()
@@ -366,8 +301,15 @@ def create_app(state: AppState) -> FastAPI:
         }
 
     @app.get(f"{API_PREFIX}/assets/{{asset_id}}")
-    def get_asset(asset_id: str, repo: RepoDep) -> dict[str, Any]:
-        detail = repo.get_asset_detail(asset_id)
+    def get_asset(
+        asset_id: str,
+        repo: RepoDep,
+        occ_page: int = Query(default=1, ge=1),
+        occ_size: int = Query(default=20, description="10, 20, 50 or 100"),
+    ) -> dict[str, Any]:
+        if occ_size not in Repository.OCCURRENCE_PAGE_SIZES:
+            raise HTTPException(422, f"occ_size must be one of {Repository.OCCURRENCE_PAGE_SIZES}")
+        detail = repo.get_asset_detail(asset_id, occ_page=occ_page, occ_size=occ_size)
         if detail is None:
             raise HTTPException(404, f"asset {asset_id!r} not found")
         return detail

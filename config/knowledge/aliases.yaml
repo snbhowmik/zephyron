@@ -131,6 +131,31 @@ names:
   Ed25519ph: { family: EdDSA }
   Ed448ph: { family: EdDSA }
 
+  # --- Java (JCA) simple names the standard-names spec defines, missing above
+  # (found by measuring 61 common JCA names: 38 did not resolve). Compound names
+  # (SHA256withRSA, PBEWithMD5AndDES, HmacSHA256, AES/CBC/...) are handled by the
+  # grammar in normalize/jca.py, not listed here. ---
+  Ed25519: { family: EdDSA }
+  Ed448: { family: EdDSA }
+  EdDSA: { family: EdDSA }
+  X25519: { family: ECDH, parameter_set: X25519 }
+  X448: { family: ECDH, parameter_set: X448 }
+  XDH: { family: ECDH }
+  ECDH: { family: ECDH }
+  DH: { family: FFDH }
+  DiffieHellman: { family: FFDH }
+  DESede: { family: 3DES }
+  TripleDES: { family: 3DES }
+  3DES: { family: 3DES }
+  ARCFOUR: { family: RC4 }
+  SHA1: { family: SHA-1 }
+  SHA-512/224: { family: SHA-2, parameter_set: "224" }  # output size sets the Grover margin
+  SHA-512/256: { family: SHA-2, parameter_set: "256" }
+  SHA512/224: { family: SHA-2, parameter_set: "224" }
+  SHA512/256: { family: SHA-2, parameter_set: "256" }
+  ChaCha20-Poly1305: { family: ChaCha20 }
+  AES/ECB/PKCS5Padding: { family: AES }
+
 curves:
   # T-015c — the registry itself does not cross-reference these the way
   # it does for P-256/secp256r1/prime256v1.

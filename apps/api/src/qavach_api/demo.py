@@ -63,5 +63,4 @@ def seed_demo(session: Session, state: Any, root: Path) -> None:
             actor="demo",
         ),
         state.deps,
-        state.hub.publish,
     )

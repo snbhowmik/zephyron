@@ -543,14 +543,37 @@ class Repository:
             "system": group_scores(score.system_id),
         }
 
-    def get_asset_detail(self, asset_id: str) -> dict[str, Any] | None:
-        row = self.s.scalars(
-            select(m.CryptoAssetRow)
-            .where(m.CryptoAssetRow.id == asset_id)
-            .options(selectinload(m.CryptoAssetRow.occurrences))
-        ).first()
+    OCCURRENCE_PAGE_SIZES = (10, 20, 50, 100)
+
+    def get_asset_detail(
+        self, asset_id: str, *, occ_page: int = 1, occ_size: int = 20
+    ) -> dict[str, Any] | None:
+        """One asset. Occurrences are paged (one real `MD5` can carry thousands):
+        the page plus the total and the per-tool counts, which are what the
+        reconciliation view summarises, so nothing needs all of them at once."""
+        if occ_size not in self.OCCURRENCE_PAGE_SIZES:
+            raise ValueError(f"occ_size must be one of {self.OCCURRENCE_PAGE_SIZES}")
+        row = self.s.get(m.CryptoAssetRow, asset_id)
         if row is None:
             return None
+        by_tool = {
+            collector: int(n)
+            for collector, n in self.s.execute(
+                select(m.OccurrenceRow.collector, func.count())
+                .where(m.OccurrenceRow.asset_id == asset_id)
+                .group_by(m.OccurrenceRow.collector)
+            )
+        }
+        total = sum(by_tool.values())
+        pages = max(1, -(-total // occ_size))
+        occ_page = min(max(1, occ_page), pages)
+        page_rows = self.s.scalars(
+            select(m.OccurrenceRow)
+            .where(m.OccurrenceRow.asset_id == asset_id)
+            .order_by(m.OccurrenceRow.id)
+            .offset((occ_page - 1) * occ_size)
+            .limit(occ_size)
+        ).all()
         rec = self.s.get(m.RecommendationRow, asset_id)
         scores = self.s.scalars(
             select(m.RiskScoreRow).where(m.RiskScoreRow.asset_id == asset_id)
@@ -586,8 +609,13 @@ class Repository:
                     "detection_method": o.detection_method,
                     "raw_ref": o.raw_ref,
                 }
-                for o in row.occurrences
+                for o in page_rows
             ],
+            "occurrence_total": total,
+            "occurrence_page": occ_page,
+            "occurrence_pages": pages,
+            "occurrence_size": occ_size,
+            "occurrence_by_tool": by_tool,
             "risk": [sc.entry_json for sc in sorted(scores, key=lambda x: x.system_id)],
             "systems": [{"system_id": s_.system_id, "basis": s_.basis_json} for s_ in systems],
             "recommendation": None

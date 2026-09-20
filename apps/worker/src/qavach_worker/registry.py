@@ -29,16 +29,17 @@ import yaml
 from qavach_collectors import CollectorRegistry
 from qavach_collectors.binary import BinaryCollector, BinaryKnowledge
 from qavach_collectors.cbom_upload import ExternalCbomCollector
-from qavach_collectors.container.theia import TheiaCollector
+from qavach_collectors.container.theia import THEIA_IMAGE, TheiaCollector
 from qavach_collectors.runtime import TracebomCollector
 from qavach_collectors.sbom import CryptoLibraryMapping
-from qavach_collectors.sbom.syft import SyftCollector
+from qavach_collectors.sbom.syft import SYFT_IMAGE, SyftCollector
 from qavach_collectors.source_scan import (
     CbomkitCollector,
     CdxgenCollector,
     OpengrepCollector,
     load_rules,
 )
+from qavach_collectors.source_scan.cdxgen import CDXGEN_IMAGE
 from qavach_collectors.ssh.collector import SshHostKeyCollector
 from qavach_collectors.tls.collector import TlsEndpointCollector
 from qavach_collectors.tls.ssrf import NetworkPolicy
@@ -79,12 +80,29 @@ def local_image_id(tag: str, engine: str = "docker") -> str | None:
     return ident if proc.returncode == 0 and ident.startswith("sha256:") else None
 
 
+def resolve_local_ref(ref: str, engine: str = "docker") -> str:
+    """Make a digest-pinned reference usable on a host that got its images from an
+    offline bundle. `docker load` restores an image by content but not its
+    `repo@sha256:` name; under the containerd image store the image ID *is* the
+    registry digest, so the bare `sha256:<digest>` names exactly the same bytes and
+    the sandbox accepts it (it is content-addressed, never a mutable tag). If the
+    pinned name resolves, or the digest is not present locally either, the
+    original reference is returned unchanged."""
+    if "@sha256:" not in ref:
+        return ref
+    if local_image_id(ref, engine) is not None:
+        return ref
+    bare = "sha256:" + ref.split("@sha256:", 1)[1]
+    return bare if local_image_id(bare, engine) == bare else ref
+
+
 def build_central_registry(
     config: Path,
     *,
     registry: CryptographyRegistry,
     aliases: AliasTable,
     image_id: Callable[[str], str | None] = local_image_id,
+    resolve_ref: Callable[[str], str] = resolve_local_ref,
     engine_available: bool = True,
 ) -> CentralRegistry:
     def yml(path: str) -> Any:
@@ -117,9 +135,13 @@ def build_central_registry(
     libraries = CryptoLibraryMapping.from_entries(
         yml("knowledge/crypto_libraries.yaml")["libraries"]
     )
-    reg.register(CdxgenCollector(registry=registry, aliases=aliases))
-    reg.register(SyftCollector(crypto_libraries=libraries))
-    reg.register(TheiaCollector(registry=registry, aliases=aliases))
+    reg.register(
+        CdxgenCollector(registry=registry, aliases=aliases, image_ref=resolve_ref(CDXGEN_IMAGE))
+    )
+    reg.register(SyftCollector(crypto_libraries=libraries, image_ref=resolve_ref(SYFT_IMAGE)))
+    reg.register(
+        TheiaCollector(registry=registry, aliases=aliases, image_ref=resolve_ref(THEIA_IMAGE))
+    )
 
     built: dict[str, str] = {}
     for name, tag in BUILT_IMAGES.items():

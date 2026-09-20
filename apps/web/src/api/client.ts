@@ -113,7 +113,8 @@ export const api = {
     request<ScanDiff>(`/api/v1/scans/${before}/diff/${after}`),
   assets: (id: string, query: AssetQuery) =>
     request<AssetPage>(`/api/v1/scans/${id}/assets${queryString({ ...query })}`),
-  asset: (id: string) => request<AssetDetail>(`/api/v1/assets/${id}`),
+  asset: (id: string, occPage = 1, occSize = 20) =>
+    request<AssetDetail>(`/api/v1/assets/${id}?occ_page=${occPage}&occ_size=${occSize}`),
   roadmap: (id: string) => request<RoadmapResponse>(`/api/v1/scans/${id}/roadmap`),
   register: (id: string) => request<RiskRegister>(`/api/v1/scans/${id}/export/risk-register`),
   policy: () => request<PolicyDoc>("/api/v1/policy"),

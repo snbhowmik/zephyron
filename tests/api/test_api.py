@@ -374,23 +374,29 @@ def test_adjudicating_an_asset_with_no_dispute_is_refused(client: TestClient) ->
     assert r.status_code == 422 and "no unresolved dispute" in r.json()["detail"]
 
 
-def test_progress_is_streamed_over_a_websocket_with_replay_for_late_joiners(
-    client: TestClient,
-) -> None:
-    sid = _scan(client)  # finished before we connect: history must still be replayed
+def test_the_websocket_only_reports_that_the_scan_ended_and_how(client: TestClient) -> None:
+    sid = _scan(client)
     with client.websocket_connect(f"/api/v1/scans/{sid}/progress") as ws:
-        events = []
-        while True:
-            event = ws.receive_json()
-            events.append(event)
-            if event["stage"] == "scan" and event["status"] in {"finished", "closed", "failed"}:
-                break
-    stages = [e["stage"] for e in events if e["collector"] is None and e["status"] == "started"]
-    assert stages == ["collect", "assemble", "context", "risk", "recommend", "roadmap", "persist"]
-    assert {e["collector"] for e in events if e["collector"]} >= {
-        "source_scan.cdxgen",
-        "runtime.tracebom",
-    }
+        assert ws.receive_json() == {"stage": "scan", "status": "complete", "scan_id": sid}
+
+
+def test_the_websocket_keeps_waiting_while_the_scan_runs_and_never_streams_stages(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import qavach_api.app as app_module
+    from qavach_storage import Repository
+
+    monkeypatch.setattr(app_module, "POLL_SECONDS", 0.05)
+    sid = _scan(client)
+    st = client.app.state.qavach  # type: ignore[attr-defined]
+    with st.session_factory() as s:  # pretend it is still running
+        Repository(s).set_status(sid, "running")
+        s.commit()
+    with client.websocket_connect(f"/api/v1/scans/{sid}/progress") as ws:
+        with st.session_factory() as s:
+            Repository(s).set_status(sid, "partial", now=st.clock())
+            s.commit()
+        assert ws.receive_json()["status"] == "partial"  # the first and only message
 
 
 def test_a_websocket_for_an_unknown_scan_is_closed(client: TestClient) -> None:
@@ -519,3 +525,21 @@ def test_the_first_simulate_after_a_scan_is_served_from_the_prewarmed_row_cache(
     sid = _scan(client)
     r = client.post("/api/v1/policy/simulate", json={"scan_id": sid, "z_scenario": "aggressive"})
     assert r.status_code == 200 and r.json()["rows_from_cache"] is True
+
+
+def test_asset_detail_pages_its_occurrences_with_sizes_10_20_50_100(client: TestClient) -> None:
+    sid = _scan(client)
+    items = client.get(f"/api/v1/scans/{sid}/assets", params={"page_size": 100}).json()["items"]
+    busiest = max(items, key=lambda i: i["occurrences"])
+    assert busiest["occurrences"] > 3
+    url = f"/api/v1/assets/{busiest['id']}"
+    full = client.get(url, params={"occ_size": 100}).json()
+    assert full["occurrence_total"] == busiest["occurrences"] == len(full["occurrences"])
+    assert sum(full["occurrence_by_tool"].values()) == full["occurrence_total"]
+    small = client.get(url, params={"occ_size": 10}).json()
+    assert len(small["occurrences"]) == min(10, small["occurrence_total"])
+    assert small["occurrence_size"] == 10 and small["occurrence_pages"] >= 1
+    # an out-of-range page is clamped to the last one, and a size outside the four is refused
+    last = client.get(url, params={"occ_page": 99, "occ_size": 10}).json()
+    assert last["occurrence_page"] == last["occurrence_pages"] == small["occurrence_pages"]
+    assert client.get(url, params={"occ_size": 7}).status_code == 422

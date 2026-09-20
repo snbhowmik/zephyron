@@ -37,6 +37,8 @@ export interface ScanDetail {
   stages: Record<string, StageInfo>;
   summary: {
     assets?: number;
+    error?: string;
+    error_stage?: string;
     claims?: number;
     by_finding_class?: Record<string, number>;
     collectors?: Record<string, string>;
@@ -160,6 +162,11 @@ export interface RegisterEntry {
 }
 
 export interface AssetDetail {
+  occurrence_total: number;
+  occurrence_page: number;
+  occurrence_pages: number;
+  occurrence_size: number;
+  occurrence_by_tool: Record<string, number>;
   certificate: CertificateFacts | null;
   id: string;
   scan_run_id: string;
@@ -275,13 +282,6 @@ export interface SimulateResult {
 export interface PolicyDoc {
   snapshot_id: string;
   nodes: { path: string; fields: Record<string, unknown>; basis: string }[];
-}
-
-export interface ProgressEvent {
-  stage: string;
-  status: string;
-  collector: string | null;
-  detail: string | null;
 }
 
 export interface DiffRow {
