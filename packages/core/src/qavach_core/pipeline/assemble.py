@@ -30,10 +30,11 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from qavach_core.model.asset import CryptoAsset, Occurrence
+from qavach_core.model.certificate import CertificateFacts
 from qavach_core.model.enums import AssetType, ConfidenceTier, CryptoFunction, FindingClass
 from qavach_core.model.identity import AssetIdentity
 from qavach_core.model.locus import Locus
@@ -73,6 +74,11 @@ class ClaimInput:
     parameter_set: str | None = None
     mode: str | None = None
     padding: str | None = None
+    certificate: CertificateFacts | None = None
+    """Set when this claim is a certificate's public key (OQ-20): the claim then
+    becomes a CERTIFICATE asset (a CA keyed by SPKI, a leaf by fingerprint) rather
+    than a pooled algorithm asset, so a root CA and an ephemeral leaf that share
+    an algorithm stay separate assets with separate lifetimes."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,6 +146,8 @@ class _Prepared:
     function: CryptoFunction | None
     oid: str | None
     resolved: bool
+    asset_type: AssetType = AssetType.ALGORITHM
+    certificate: CertificateFacts | None = None
 
 
 def _prepare(claim: ClaimInput, k: AssembleKnowledge) -> _Prepared:
@@ -172,6 +180,30 @@ def _prepare(claim: ClaimInput, k: AssembleKnowledge) -> _Prepared:
     function = classify_function(result.primitive) or k.family_functions.default_function.get(
         family
     )
+    facts = claim.certificate
+    if facts is not None:
+        # A certificate's key is used to sign; that is its function whatever the
+        # collector's primitive said about the bare key.
+        identity = asset_identity(
+            IdentityClaim(
+                asset_type=AssetType.CERTIFICATE,
+                is_ca=facts.is_ca,
+                spki_sha256=facts.spki_sha256,
+                sha256_fingerprint=facts.sha256_fingerprint,
+            )
+        )
+        return _Prepared(
+            claim,
+            identity,
+            family,
+            parameter_set,
+            curve,
+            CryptoFunction.SIGNATURE,
+            result.oid if result.resolution_method == "oid" else None,
+            True,
+            AssetType.CERTIFICATE,
+            facts,
+        )
     identity = asset_identity(
         IdentityClaim(
             asset_type=AssetType.ALGORITHM,
@@ -184,6 +216,16 @@ def _prepare(claim: ClaimInput, k: AssembleKnowledge) -> _Prepared:
     )
     trusted_oid = result.oid if result.resolution_method == "oid" else None
     return _Prepared(claim, identity, family, parameter_set, curve, function, trusted_oid, True)
+
+
+def _latest_certificate(group: Sequence[_Prepared]) -> CertificateFacts | None:
+    """A CA keyed by SPKI can be observed as several certificates (a reissue with
+    the same key): the asset keeps the one that stays trusted longest, ties broken
+    by fingerprint so the choice is deterministic."""
+    facts = [p.certificate for p in group if p.certificate is not None]
+    if not facts:
+        return None
+    return max(facts, key=lambda c: (c.not_after, c.sha256_fingerprint))
 
 
 def assemble(
@@ -252,7 +294,7 @@ def assemble(
         assets.append(
             CryptoAsset(
                 identity=identity,
-                asset_type=AssetType.ALGORITHM,
+                asset_type=head.asset_type,
                 function=function,
                 algorithm_family=head.family,
                 parameter_set=head.parameter_set,
@@ -278,6 +320,7 @@ def assemble(
                 concluded_from=merged.concluded_from,
                 disputed=merged.disputed,
                 disputes=merged.disputes,
+                certificate=_latest_certificate(group),
             )
         )
         # `also_quantum_vulnerable` is a property of the classification, carried
@@ -288,6 +331,13 @@ def assemble(
         unresolved=tuple(sorted(unresolved)),
         adjudications=outcome,
     )
+
+
+def artefact_lifetime_of(asset: CryptoAsset, as_of: date) -> float | None:
+    """How long a certificate asset stays trusted from `as_of` - the `x_integ`
+    input (ARCH.md §7.2, I2). `None` for anything that is not a certificate, which
+    the scorer reads as "no long-lived artefact": it never invents a lifetime."""
+    return asset.certificate.remaining_years(as_of) if asset.certificate else None
 
 
 def also_quantum_vulnerable_of(asset: CryptoAsset, knowledge: AssembleKnowledge) -> bool:

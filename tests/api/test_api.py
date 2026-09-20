@@ -91,8 +91,8 @@ def test_starting_a_scan_returns_202_with_a_pollable_id_and_it_completes(
 ) -> None:
     sid = _scan(client)
     body = client.get(f"/api/v1/scans/{sid}").json()
-    assert body["status"] == "complete" and body["summary"]["assets"] == 27
-    assert len(body["collectors"]) == 5 and all(not c["partial"] for c in body["collectors"])
+    assert body["status"] == "complete" and body["summary"]["assets"] == 29
+    assert len(body["collectors"]) == 6 and all(not c["partial"] for c in body["collectors"])
     assert body["policy_snapshot_id"] == POLICY.snapshot_id and "roadmap" not in body["summary"]
 
 
@@ -115,7 +115,7 @@ def test_unknown_scans_assets_and_target_types_are_clean_errors(client: TestClie
 def test_the_inventory_is_faceted_filtered_and_paginated(client: TestClient) -> None:
     sid = _scan(client)
     page = client.get(f"/api/v1/scans/{sid}/assets", params={"page_size": 10}).json()
-    assert page["total"] == 27 and len(page["items"]) == 10 and page["facets"]["finding_class"]
+    assert page["total"] == 29 and len(page["items"]) == 10 and page["facets"]["finding_class"]
     weak = client.get(
         f"/api/v1/scans/{sid}/assets", params={"finding_class": "classical-weak"}
     ).json()
@@ -355,7 +355,7 @@ def test_suppression_needs_a_reason_is_audited_and_the_asset_stays_listed_but_fl
     assert ok.status_code == 200
     after = client.get(f"/api/v1/scans/{sid}/assets", params={"page_size": 100}).json()
     assert (
-        after["total"] == 27
+        after["total"] == 29
         and next(i for i in after["items"] if i["id"] == item["id"])["suppressed"] is True
     )
     assert (
@@ -477,7 +477,7 @@ def test_scans_are_listed_newest_first_with_their_status(client: TestClient) -> 
     a = _scan(client)
     listed = client.get("/api/v1/scans").json()
     assert [s["id"] for s in listed] == [a]
-    assert listed[0]["status"] == "complete" and listed[0]["assets"] == 27
+    assert listed[0]["status"] == "complete" and listed[0]["assets"] == 29
 
 
 def test_the_z_slider_can_override_a_scenarios_crqc_year_and_it_moves_assets(

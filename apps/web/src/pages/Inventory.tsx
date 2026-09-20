@@ -11,6 +11,7 @@ import {
   Pill,
 } from "@/components/ui";
 import { useScanId } from "@/hooks";
+import { certificateRole, commonName } from "@/lib/certificate";
 import { styleFor } from "@/lib/findingClass";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -26,7 +27,11 @@ const FACETS: { key: string; label: string; param: string }[] = [
 
 function algorithm(a: AssetListItem): string {
   const detail = a.curve ?? a.parameter_set;
-  return detail ? `${a.family}-${detail}` : a.family;
+  const base = detail ? `${a.family}-${detail}` : a.family;
+  // Two certificates can share an algorithm; the role is what tells them apart.
+  return a.certificate
+    ? `${base} · ${certificateRole(a.certificate)} ${commonName(a.certificate.subject)}`
+    : base;
 }
 
 export function Inventory() {

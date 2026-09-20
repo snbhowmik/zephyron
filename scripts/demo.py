@@ -51,12 +51,14 @@ from qavach_core.export import (
     build_sarif,
     cbom_violations,
 )
+from qavach_core.model.enums import ConfidenceTier
 from qavach_core.normalize import AliasTable, CryptographyRegistry
 from qavach_core.pipeline import (
     AssembleKnowledge,
     ClaimInput,
     FamilyFunctions,
     also_quantum_vulnerable_of,
+    artefact_lifetime_of,
     assemble,
     plan_roadmap,
 )
@@ -106,6 +108,38 @@ def load_knowledge() -> tuple[AssembleKnowledge, PolicySnapshot, PqcKnowledge]:
     return knowledge, policy, pqc
 
 
+def planted_tls_result() -> Any:
+    """The planted root-CA-vs-TLS-leaf pair (T-120, OQ-20, invariant I2).
+
+    Two synthetic RSA-2048 certificates (`tests/fixtures/demo/planted-chain/`) go
+    through the *real* TLS-endpoint certificate parser and claim builder - only the
+    handshake that would have delivered them is replaced by two files. Labelled as
+    planted wherever the demo shows it.
+    """
+    from qavach_collectors import CollectorResult, RawFormat, ToolIdentity
+    from qavach_collectors.tls.collector import _cert_claims
+    from qavach_collectors.tls.endpoint import parse_certificate_pem
+    from qavach_core.model import NetworkLocus
+
+    locus = NetworkLocus(
+        host="pay.acme.example", port=443, sni="pay.acme.example", protocol="TLSv1.3"
+    )
+    claims = []
+    for name in ("root.pem", "leaf.pem"):
+        pem = (ROOT / "tests" / "fixtures" / "demo" / "planted-chain" / name).read_bytes()
+        claims += _cert_claims(
+            parse_certificate_pem(pem), locus=locus, confidence=ConfidenceTier.RUNTIME
+        )
+    return CollectorResult(
+        raw=b"planted",
+        raw_format=RawFormat.QAVACH_NATIVE,
+        claims=claims,
+        tool=ToolIdentity("tls.endpoint", "planted-demo", ("planted",), 0, 0.0),
+        errors=[],
+        partial=False,
+    )
+
+
 def replay_results(knowledge: AssembleKnowledge) -> list[Any]:
     """Each real collector's *parser* run over its recorded real output, as
     `CollectorResult`s."""
@@ -146,6 +180,7 @@ def replay_results(knowledge: AssembleKnowledge) -> list[Any]:
             lambda _c, data=recorded: SandboxResult(0, data, b"", 1.0, False),
         ):
             results.append(collector.collect(target, RunContext(scan_run_id="demo")))
+    results.append(planted_tls_result())
     return results
 
 
@@ -161,6 +196,7 @@ def replay_corpus(knowledge: AssembleKnowledge) -> list[ClaimInput]:
                     parameter_set=raw.parameter_set,
                     mode=raw.mode,
                     padding=raw.padding,
+                    certificate=raw.certificate,
                     locus=raw.locus,
                     collector=result.tool.name,
                     tool_version=result.tool.version,
@@ -209,6 +245,7 @@ def build_demo(out: Path | None = None) -> dict[str, Any]:
                     authority=asset.migration_authority,
                     loci=tuple(o.locus for o in asset.occurrences),
                     system=system,
+                    artefact_lifetime_years=artefact_lifetime_of(asset, AS_OF),
                 ),
                 policy=policy,
                 as_of=AS_OF,

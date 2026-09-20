@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import time
 
-from qavach_core.model import ConfidenceTier, NetworkLocus
+from qavach_core.model import CertificateFacts, ConfidenceTier, NetworkLocus
 
 from qavach_collectors.base import (
     CollectorError,
@@ -192,5 +192,15 @@ def _cert_claims(
             parameter_set=parameter_set,
             detection_method="runtime",
             confidence=confidence,
+            certificate=CertificateFacts(
+                sha256_fingerprint=cert.sha256_fingerprint_hex,
+                spki_sha256=cert.spki_sha256_hex,
+                subject=cert.subject,
+                issuer=cert.issuer,
+                not_before=cert.not_before,
+                not_after=cert.not_after,
+                is_ca=cert.is_ca,
+                self_signed=cert.self_signed,
+            ),
         )
     ]

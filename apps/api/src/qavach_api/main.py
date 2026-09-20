@@ -33,7 +33,7 @@ from qavach_core.pipeline import AssembleKnowledge, FamilyFunctions
 from qavach_core.policy import PolicySnapshot
 from qavach_core.recommend import PqcKnowledge
 from qavach_core.risk import ClassificationRules
-from qavach_storage import Repository, create_all, make_engine, session_factory
+from qavach_storage import Repository, create_all, make_engine, schema_drift, session_factory
 from qavach_worker import Deps
 
 from qavach_api.agent_ca import AgentCA
@@ -88,6 +88,21 @@ def build_app() -> Any:
 
     engine = make_engine(url)
     create_all(engine)
+    drift = schema_drift(engine)
+    if drift:
+        default_dev_db = "QAVACH_DATABASE_URL" not in os.environ
+        if demo and default_dev_db:
+            # A disposable demo database from an older build: rebuild it.
+            engine.dispose()
+            Path(url.removeprefix("sqlite:///")).unlink(missing_ok=True)
+            engine = make_engine(url)
+            create_all(engine)
+        else:
+            raise RuntimeError(
+                "the database schema is out of date "
+                f"({'; '.join(drift[:5])}). Run `alembic upgrade head` "
+                "(packages/storage) or point QAVACH_DATABASE_URL at a fresh database."
+            )
     registry = CollectorRegistry()
     meta: dict[str, Any] = {"demo": demo, "collectors": [], "auth": "none"}
 

@@ -44,6 +44,7 @@ from qavach_core.pipeline import (
     AssembleKnowledge,
     ClaimInput,
     also_quantum_vulnerable_of,
+    artefact_lifetime_of,
     assemble,
     plan_roadmap,
 )
@@ -245,6 +246,7 @@ def run_scan(
                         parameter_set=raw.parameter_set,
                         mode=raw.mode,
                         padding=raw.padding,
+                        certificate=raw.certificate,
                         locus=raw.locus,
                         collector=result.tool.name,
                         tool_version=result.tool.version,
@@ -314,6 +316,7 @@ def run_scan(
                         authority=asset.migration_authority,
                         loci=tuple(o.locus for o in asset.occurrences),
                         system=system,
+                        artefact_lifetime_years=artefact_lifetime_of(asset, as_of),
                     ),
                     policy=deps.policy,
                     as_of=as_of,

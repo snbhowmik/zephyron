@@ -11,6 +11,7 @@ and is built in Phase 7 (T-084), not here.
 from __future__ import annotations
 
 from qavach_core.model.asset import CryptoAsset, Occurrence
+from qavach_core.model.certificate import CertificateFacts
 from qavach_core.model.dispute import AttributeClaim, Dispute
 from qavach_core.model.enums import (
     AssetType,
@@ -38,6 +39,7 @@ from qavach_core.model.locus import (
 from qavach_core.model.system import DataClass, System
 
 __all__ = [
+    "CertificateFacts",
     "AssetIdentity",
     "AssetType",
     "AttributeClaim",

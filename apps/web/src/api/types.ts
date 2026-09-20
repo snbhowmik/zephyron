@@ -69,7 +69,19 @@ export interface AssetScore {
   ev: number | null;
 }
 
+export interface CertificateFacts {
+  sha256_fingerprint: string;
+  spki_sha256: string;
+  subject: string;
+  issuer: string;
+  not_before: string;
+  not_after: string;
+  is_ca: boolean;
+  self_signed: boolean;
+}
+
 export interface AssetListItem {
+  certificate: CertificateFacts | null;
   id: string;
   identity_key: string;
   family: string;
@@ -148,6 +160,7 @@ export interface RegisterEntry {
 }
 
 export interface AssetDetail {
+  certificate: CertificateFacts | null;
   id: string;
   scan_run_id: string;
   identity_key: string;

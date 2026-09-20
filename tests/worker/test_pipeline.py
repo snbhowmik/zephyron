@@ -113,10 +113,10 @@ def test_a_scan_over_real_recorded_output_completes_and_persists_everything(sess
     assert scan is not None and scan.status == "complete" and scan.finished is not None
     assert set(scan.stages_json) == set(STAGES)
     assert all(v["status"] == "finished" for v in scan.stages_json.values())
-    assert outcome.summary["assets"] == 27 and outcome.summary["claims"] == 67
+    assert outcome.summary["assets"] == 29 and outcome.summary["claims"] == 69
     page = repo.list_assets("scan-1", page_size=100)
-    assert page.total == 27 and page.facets["finding_class"]
-    assert sum(1 for i in page.items if i["scores"]) == 27
+    assert page.total == 29 and page.facets["finding_class"]
+    assert sum(1 for i in page.items if i["scores"]) == 29
     assert {c.collector for c in repo.collector_runs("scan-1")} >= {
         "source_scan.cdxgen",
         "source_scan.cbomkit",
@@ -153,7 +153,7 @@ def test_stages_and_collectors_emit_progress_in_order(session) -> None:  # type:
     ]
     assert [s for s, st in stage_events if st == "started"] == list(STAGES)
     collectors = [e.collector for e in events if e.collector and e.status == "started"]
-    assert len(collectors) == 5
+    assert len(collectors) == 6
     assert events[-1].stage == "scan" and events[-1].status == "finished"
 
 
@@ -213,7 +213,7 @@ def test_a_stage_failure_marks_the_scan_failed_names_the_stage_and_reraises(
 def test_assets_are_bound_to_systems_and_unbound_ones_stay_visible(session) -> None:  # type: ignore[no-untyped-def]
     repo = _with_systems(session)
     _run(session)
-    assert repo.list_assets("scan-1", AssetFilter(system_id="payments-core")).total == 27
+    assert repo.list_assets("scan-1", AssetFilter(system_id="payments-core")).total == 29
     bare = Repository(session)
     _run_no_systems = run_scan(
         session, ScanRequest(target=TARGET, scan_id="scan-2", as_of=AS_OF), deps(), None

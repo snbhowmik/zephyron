@@ -8,6 +8,7 @@ from qavach_core.pipeline.assemble import (
     ClaimInput,
     FamilyFunctions,
     also_quantum_vulnerable_of,
+    artefact_lifetime_of,
     assemble,
 )
 from qavach_core.pipeline.drift import Drift, EntryChange, diff_entries
@@ -21,6 +22,7 @@ __all__ = [
     "EntryChange",
     "FamilyFunctions",
     "also_quantum_vulnerable_of",
+    "artefact_lifetime_of",
     "assemble",
     "diff_entries",
     "plan_roadmap",

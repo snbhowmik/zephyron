@@ -1,5 +1,10 @@
 import { api } from "@/api/client";
-import type { AssetDetail as Detail, Occurrence, RegisterEntry } from "@/api/types";
+import type {
+  CertificateFacts,
+  AssetDetail as Detail,
+  Occurrence,
+  RegisterEntry,
+} from "@/api/types";
 import {
   BandBadge,
   Button,
@@ -12,6 +17,7 @@ import {
   Pill,
 } from "@/components/ui";
 import { useScanId } from "@/hooks";
+import { certificateRole, validityYears } from "@/lib/certificate";
 import { styleFor } from "@/lib/findingClass";
 import { years } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +45,36 @@ function locusText(locus: Occurrence["locus"]): string {
 }
 
 /** The reconciliation view: one asset, N occurrences, N tools (T-104). */
+function CertificateCard({ c }: { c: CertificateFacts }) {
+  const role = certificateRole(c);
+  const remaining = validityYears(c);
+  return (
+    <Card data-testid="certificate">
+      <CardTitle hint="why two assets with one algorithm can score differently (I2)">
+        Certificate · {role}
+      </CardTitle>
+      <dl className="grid grid-cols-[9rem_1fr] gap-y-1 text-sm">
+        <dt className="text-slate-500">Subject</dt>
+        <dd className="font-mono text-xs">{c.subject}</dd>
+        <dt className="text-slate-500">Issuer</dt>
+        <dd className="font-mono text-xs">{c.issuer}</dd>
+        <dt className="text-slate-500">Valid</dt>
+        <dd>
+          {c.not_before.slice(0, 10)} → {c.not_after.slice(0, 10)}{" "}
+          <span className="text-slate-400">({years(remaining)} left)</span>
+        </dd>
+        <dt className="text-slate-500">Fingerprint</dt>
+        <dd className="break-all font-mono text-xs">{c.sha256_fingerprint}</dd>
+      </dl>
+      <p className="mt-2 text-xs text-slate-400">
+        {role === "leaf"
+          ? "A short-lived leaf leaves little for a future forger to exploit, so its signature shelf life is near zero."
+          : "A CA anchors trust until it expires, so a forged signature would stay useful for that whole time."}
+      </p>
+    </Card>
+  );
+}
+
 function Reconciliation({ asset }: { asset: Detail }) {
   const byTool = new Map<string, Occurrence[]>();
   for (const o of asset.occurrences)
@@ -357,6 +393,7 @@ export function AssetDetail() {
         </div>
         <p className="mt-1 text-sm text-slate-400">{styleFor(a.finding_class).copy}</p>
       </div>
+      {a.certificate ? <CertificateCard c={a.certificate} /> : null}
       <Reconciliation asset={a} />
       <div className="grid gap-4 lg:grid-cols-2">
         {a.risk.map((entry) => (

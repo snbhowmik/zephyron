@@ -20,6 +20,7 @@ from collections import Counter
 from datetime import date
 from typing import Any
 
+from qavach_core.model.certificate import CertificateFacts
 from qavach_core.model.enums import CryptoFunction, FindingClass, MigrationAuthority
 from qavach_core.model.identity import AssetIdentity, IdentityKind
 from qavach_core.model.locus import locus_from_dict
@@ -67,6 +68,12 @@ def apply_overrides(base: PolicySnapshot, overrides: dict[str, Any]) -> PolicySn
             cursor = cursor[part]
         cursor[field] = new_value
     return PolicySnapshot.from_documents(documents)
+
+
+def _lifetime(certificate: dict[str, Any] | None, as_of: date) -> float | None:
+    """Recomputed from `not_after` against the *simulated* as-of date, not the
+    scan's: moving the date is one of the things a simulation is for."""
+    return CertificateFacts.from_dict(certificate).remaining_years(as_of) if certificate else None
 
 
 def simulate(
@@ -127,6 +134,7 @@ def simulate(
                     authority=MigrationAuthority(row["migration_authority"]),
                     loci=loci,
                     system=systems.get(system_id) if system_id else None,
+                    artefact_lifetime_years=_lifetime(row.get("certificate"), as_of),
                 ),
                 policy=candidate,
                 as_of=as_of,

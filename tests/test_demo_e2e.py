@@ -108,3 +108,26 @@ def test_the_sarif_gates_on_what_the_real_run_found(out: Path) -> None:
     sarif = json.loads((out / "findings.sarif").read_text())
     levels = {r["level"] for r in sarif["runs"][0]["results"]}
     assert "error" in levels and sarif["version"] == "2.1.0"
+
+
+def test_I2_the_planted_root_ca_and_tls_leaf_share_an_algorithm_but_not_an_urgency(
+    out: Path,
+) -> None:
+    """T-120 / OQ-20: the demonstration the whole risk model exists to make. Same
+    RSA-2048, opposite Mosca inputs, and they stay two assets."""
+    register = json.loads((out / "risk-register.json").read_text())
+    cbom = json.loads((out / "cbom.cdx.json").read_text())
+    names = {
+        c["bom-ref"]: c["name"]
+        for c in cbom["components"]
+        if c["cryptoProperties"]["assetType"] == "certificate"
+    }
+    assert len(names) == 2
+    by_role = {}
+    for e in register["entries"]:
+        if e["bom_ref"] in names and e["system_id"] == "payments-core":
+            by_role["root" if "Root" in names[e["bom_ref"]] else "leaf"] = e
+    root, leaf = by_role["root"], by_role["leaf"]
+    assert root["mosca"]["x_integ_years"] > 15 and leaf["mosca"]["x_integ_years"] == 0
+    assert root["mosca"]["gap_years"] > 0 > leaf["mosca"]["gap_years"]
+    assert root["band"] == "overdue"

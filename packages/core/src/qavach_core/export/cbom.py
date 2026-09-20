@@ -31,10 +31,11 @@ import hashlib
 import json
 import uuid
 from collections.abc import Iterable, Mapping
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from qavach_core.model.asset import CryptoAsset, Occurrence
+from qavach_core.model.certificate import CertificateFacts
 from qavach_core.model.enums import AssetType, ConfidenceTier, CryptoFunction
 from qavach_core.model.identity import AssetIdentity
 from qavach_core.model.locus import (
@@ -159,8 +160,34 @@ def _occurrence(occ: Occurrence) -> dict[str, Any]:
     return item
 
 
+def _certificate_properties(cert: CertificateFacts) -> dict[str, Any]:
+    """Certificate facts as CycloneDX 1.7 `certificateProperties`. Role is carried
+    by the standard `basicConstraints` extension (CA:TRUE/FALSE) plus the
+    subject/issuer, so no `qavach:` property is needed for it."""
+
+    def iso(value: Any) -> str:
+        return str(value.astimezone(UTC).isoformat().replace("+00:00", "Z"))
+
+    return {
+        "subjectName": cert.subject,
+        "issuerName": cert.issuer,
+        "notValidBefore": iso(cert.not_before),
+        "notValidAfter": iso(cert.not_after),
+        "certificateFormat": "X.509",
+        "fingerprint": {"alg": "SHA-256", "content": cert.sha256_fingerprint},
+        "certificateExtensions": [
+            {
+                "commonExtensionName": "basicConstraints",
+                "commonExtensionValue": "CA:TRUE" if cert.is_ca else "CA:FALSE",
+            }
+        ],
+    }
+
+
 def _component(asset: CryptoAsset, known_families: frozenset[str] | None) -> dict[str, Any]:
     name = asset.algorithm_family + (f"-{asset.parameter_set}" if asset.parameter_set else "")
+    if asset.asset_type is AssetType.CERTIFICATE and asset.certificate is not None:
+        name = asset.certificate.subject or name
     crypto: dict[str, Any] = {"assetType": asset.asset_type.value}
     if asset.asset_type is AssetType.ALGORITHM:
         props: dict[str, Any] = {
@@ -178,6 +205,8 @@ def _component(asset: CryptoAsset, known_families: frozenset[str] | None) -> dic
         if asset.padding and asset.padding.lower() in _PADDINGS:
             props["padding"] = asset.padding.lower()
         crypto["algorithmProperties"] = props
+    if asset.asset_type is AssetType.CERTIFICATE and asset.certificate is not None:
+        crypto["certificateProperties"] = _certificate_properties(asset.certificate)
     if asset.oid:
         crypto["oid"] = asset.oid
 
@@ -305,6 +334,12 @@ def downgrade_to_1_6(bom: Mapping[str, Any]) -> tuple[dict[str, Any], list[str]]
     if "$schema" in doc:
         doc["$schema"] = "http://cyclonedx.org/schema/bom-1.6.schema.json"
     for component in doc.get("components", []):
+        cert_props = component.get("cryptoProperties", {}).get("certificateProperties")
+        if cert_props:
+            for only_in_1_7 in ("fingerprint", "certificateExtensions"):
+                if only_in_1_7 in cert_props:
+                    cert_props.pop(only_in_1_7)
+                    losses.append(f"{component['bom-ref']}: {only_in_1_7} (1.7-only)")
         props = component.get("cryptoProperties", {}).get("algorithmProperties")
         if not props:
             continue

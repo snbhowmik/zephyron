@@ -22,6 +22,7 @@ from typing import Any
 
 from qavach_core.context import SystemImport
 from qavach_core.model.asset import CryptoAsset, Occurrence
+from qavach_core.model.certificate import CertificateFacts
 from qavach_core.model.dispute import AttributeClaim, Dispute
 from qavach_core.model.enums import (
     AssetType,
@@ -115,6 +116,7 @@ def asset_to_row(scan_id: str, asset: CryptoAsset) -> m.CryptoAssetRow:
         concluded_tier=int(asset.concluded_from),
         disputed=asset.disputed,
         disputes_json=[dispute_to_dict(d) for d in asset.disputes],
+        certificate_json=asset.certificate.to_dict() if asset.certificate else None,
     )
     row.occurrences = [
         m.OccurrenceRow(
@@ -161,6 +163,9 @@ def row_to_asset(row: m.CryptoAssetRow) -> CryptoAsset:
         concluded_from=ConfidenceTier(row.concluded_tier),
         disputed=row.disputed,
         disputes=tuple(dispute_from_dict(d) for d in row.disputes_json),
+        certificate=(
+            CertificateFacts.from_dict(row.certificate_json) if row.certificate_json else None
+        ),
     )
 
 
@@ -481,6 +486,7 @@ class Repository:
                 "occurrences": occurrence_counts.get(r.id, 0),
                 "suppressed": r.identity_key in suppressed,
                 "capability_only": r.concluded_tier <= int(ConfidenceTier.DEPENDENCY),
+                "certificate": r.certificate_json,
                 "scores": [
                     {
                         "system_id": s_.system_id or None,
@@ -567,6 +573,7 @@ class Repository:
             "finding_class": row.finding_class,
             "migration_authority": row.migration_authority,
             "authority_basis": row.authority_basis,
+            "certificate": row.certificate_json,
             "concluded_tier": ConfidenceTier(row.concluded_tier).name.lower(),
             "disputed": row.disputed,
             "disputes": row.disputes_json,
@@ -604,6 +611,7 @@ class Repository:
                 "function": row.function,
                 "finding_class": row.finding_class,
                 "migration_authority": row.migration_authority,
+                "certificate": row.certificate_json,
                 "loci": [],
                 "systems": [],
             }
@@ -617,6 +625,7 @@ class Repository:
                     a.function,
                     a.finding_class,
                     a.migration_authority,
+                    a.certificate_json,
                 ).where(a.scan_run_id == scan_id)
             )
         }

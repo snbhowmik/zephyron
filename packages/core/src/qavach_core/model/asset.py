@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from qavach_core.model.certificate import CertificateFacts
 from qavach_core.model.dispute import Dispute
 from qavach_core.model.enums import (
     AssetType,
@@ -54,6 +55,9 @@ class CryptoAsset:
     concluded_from: ConfidenceTier
     disputed: bool
     disputes: tuple[Dispute, ...]
+    certificate: CertificateFacts | None = None
+    """Set for `AssetType.CERTIFICATE` only (OQ-20): role and validity, the inputs
+    that make a root CA and an ephemeral leaf with the same key score differently."""
 
     # NOTE: there is deliberately no scalar `key_size: int` field.
     # ARCH.md §4.2 — Ed25519 has no bit-length in the RSA sense, ML-DSA-65

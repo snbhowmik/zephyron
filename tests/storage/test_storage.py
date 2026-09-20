@@ -430,3 +430,20 @@ def test_systems_round_trip_with_dependencies_and_bindings(repo: Repository) -> 
     assert bindings["payments-core"]["repos"] == ["github.com/acme/polyglot-payments"]
     repo.replace_systems(imported)  # idempotent
     assert len(repo.load_systems()[0]) == 2
+
+
+def test_schema_drift_reports_a_column_an_older_build_never_created(tmp_path: Path) -> None:
+    """`create_all` will not add a column to an existing table, so a database from
+    an older build looks fine until a write fails mid-scan. Startup checks this."""
+    from qavach_storage import schema_drift
+    from sqlalchemy import text
+
+    engine = make_engine(f"sqlite:///{tmp_path / 'old.db'}")
+    create_all(engine)
+    assert schema_drift(engine) == []
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE crypto_assets DROP COLUMN certificate_json"))
+    assert schema_drift(engine) == ["crypto_assets.certificate_json missing"]
+    assert schema_drift(make_engine("sqlite://")) == [
+        f"missing table {t.name}" for t in models.Base.metadata.sorted_tables
+    ]

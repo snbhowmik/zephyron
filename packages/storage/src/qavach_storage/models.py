@@ -92,6 +92,7 @@ class CryptoAssetRow(Base):
     concluded_tier: Mapped[int] = mapped_column(Integer)
     disputed: Mapped[bool] = mapped_column(Boolean)
     disputes_json: Mapped[list[Any]] = mapped_column(Json)
+    certificate_json: Mapped[dict[str, Any] | None] = mapped_column(Json, nullable=True)
 
     occurrences: Mapped[list[OccurrenceRow]] = relationship(
         back_populates="asset", cascade="all, delete-orphan", order_by="OccurrenceRow.id"

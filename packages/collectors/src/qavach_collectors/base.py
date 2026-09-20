@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
-from qavach_core.model import ConfidenceTier, Locus
+from qavach_core.model import CertificateFacts, ConfidenceTier, Locus
 
 
 class TargetType(StrEnum):
@@ -102,6 +102,9 @@ class RawClaim:
     padding: str | None = None
     detection_method: str = "other"
     confidence: ConfidenceTier = ConfidenceTier.HEURISTIC
+    certificate: CertificateFacts | None = None
+    """Set by collectors that see a whole certificate (not just its key): the role
+    and validity that make a root CA and an ephemeral leaf score differently (OQ-20)."""
 
 
 @dataclass(frozen=True, slots=True)

@@ -65,6 +65,8 @@ class CertificateInfo:
     signature_algorithm_oid: str
     sha256_fingerprint_hex: str
     spki_sha256_hex: str
+    is_ca: bool = False
+    self_signed: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,7 +136,15 @@ def _certificate_info_from_x509(cert: x509.Certificate) -> CertificateInfo:
     fingerprint_hasher = hashes.Hash(hashes.SHA256())
     fingerprint_hasher.update(cert.public_bytes(serialization.Encoding.DER))
 
+    try:
+        basic = cert.extensions.get_extension_for_class(x509.BasicConstraints)
+        is_ca = bool(basic.value.ca)
+    except x509.ExtensionNotFound:
+        is_ca = False
+
     return CertificateInfo(
+        is_ca=is_ca,
+        self_signed=cert.subject == cert.issuer,
         subject=cert.subject.rfc4514_string(),
         issuer=cert.issuer.rfc4514_string(),
         not_before=cert.not_valid_before_utc,

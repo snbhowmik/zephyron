@@ -30,7 +30,7 @@ from qavach_collectors.base import (
     RawFormat,
     ToolIdentity,
 )
-from qavach_core.model import locus_from_dict, locus_to_dict
+from qavach_core.model import CertificateFacts, locus_from_dict, locus_to_dict
 from qavach_core.model.enums import ConfidenceTier
 
 from qavach_agent.spec import InvalidScanSpecError, ScanSpec, parse_scan_spec
@@ -72,6 +72,7 @@ def serialize_collector_result(result: CollectorResult) -> dict[str, object]:
                 "padding": claim.padding,
                 "detection_method": claim.detection_method,
                 "confidence": int(claim.confidence),
+                "certificate": claim.certificate.to_dict() if claim.certificate else None,
             }
             for claim in result.claims
         ],
@@ -106,6 +107,9 @@ def deserialize_collector_result(data: dict[str, Any]) -> CollectorResult:
                 padding=c.get("padding"),
                 detection_method=c["detection_method"],
                 confidence=ConfidenceTier(int(c["confidence"])),
+                certificate=(
+                    CertificateFacts.from_dict(c["certificate"]) if c.get("certificate") else None
+                ),
             )
             for c in data["claims"]
         ],
