@@ -793,6 +793,16 @@ QUANTUM_SAFE        ML-KEM, ML-DSA, SLH-DSA, LMS, XMSS, AES-256,
                       a finding worth reporting.
 ```
 
+**MACs and key-derivation functions (added 2026-09-20, OQ-21).** `HMAC`, `PBKDF2` and
+`PBES2` are classified by the *output size of the digest they use* (the asset's
+`parameter_set`): 384 or more is `QUANTUM_SAFE` ("HMAC over those" above), 128-256 is
+`GROVER_AFFECTED` (informational). A MAC is not protected by its digest's collision
+resistance, so `HMAC-MD5` and `HMAC-SHA1` are informational, **not** `CLASSICAL_WEAK`.
+`PBES1` and `PBKDF1` are `CLASSICAL_WEAK`: RFC 8018 §5.1 and §6.1 say they are
+"recommended only for compatibility with existing applications" (PBES1 supports only
+56- and 64-bit encryption schemes). `CMAC`, `HKDF` and the password hashes (`scrypt`,
+`bcrypt`, `Argon2`) remain `UNKNOWN` until a decision is recorded for them.
+
 An asset may be simultaneously `CLASSICAL_WEAK` and quantum-vulnerable (RSA-1024
 is both). Classification picks the **more urgent** class — classical, because
 the attack works today — and the asset carries a `also_quantum_vulnerable` flag

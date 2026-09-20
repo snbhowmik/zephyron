@@ -15,6 +15,11 @@ classical_weak_unconditional_families:
   - DES
   - 3DES
   - RC4
+  # RFC 8018 (PKCS #5 v2.1), sections 5.1 and 6.1, verified 2026-09-20: PBKDF1 and PBES1
+  # are "recommended only for compatibility with existing applications" - PBES1 supports
+  # only 56/64-bit encryption schemes (DES, RC2) over MD2/MD5/SHA-1.
+  - PBES1
+  - PBKDF1
 
 # Shor-breakable. Some of these ALSO have a classical_weak_key_size_threshold
 # below — checked first per the precedence rule above.
@@ -55,6 +60,34 @@ grover_affected:
   # reporting the most common hash in existence as a coverage failure).
   - family: SHA-2
     parameter_set: "256"
+  # HMAC / PBKDF2 / PBES2 are classified by the *output size of the digest they use*
+  # (ARCH.md 7.1: "HMAC over those" [SHA-384/512, SHA3] is quantum-safe; below that the
+  # margin is Grover's, informational). The digest's own collision resistance is not what
+  # protects a MAC, so HMAC-MD5 / HMAC-SHA-1 are informational here, not classical-weak.
+  - family: HMAC
+    parameter_set: "128"
+  - family: HMAC
+    parameter_set: "160"
+  - family: HMAC
+    parameter_set: "224"
+  - family: HMAC
+    parameter_set: "256"
+  - family: PBKDF2
+    parameter_set: "128"
+  - family: PBKDF2
+    parameter_set: "160"
+  - family: PBKDF2
+    parameter_set: "224"
+  - family: PBKDF2
+    parameter_set: "256"
+  - family: PBES2
+    parameter_set: "128"
+  - family: PBES2
+    parameter_set: "160"
+  - family: PBES2
+    parameter_set: "224"
+  - family: PBES2
+    parameter_set: "256"
 
 # Unconditional quantum-safe.
 quantum_safe_families:
@@ -77,4 +110,7 @@ quantum_safe_families:
 # output size is treated as quantum-safe.
 quantum_safe_symmetric_threshold:
   AES: 256
+  HMAC: 384
+  PBKDF2: 384
+  PBES2: 384
   SHA-2: 384

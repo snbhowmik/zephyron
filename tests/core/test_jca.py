@@ -40,17 +40,27 @@ def test_signature_names_split_into_signature_and_digest() -> None:
 def test_pbe_names_expose_the_weak_hash_and_the_weak_cipher() -> None:
     assert names_of("PBEWithMD5AndDES") == ["PBES1", "MD5", "DES"]
     assert names_of("PBEWithSHA1AndDESede") == ["PBES1", "SHA-1", "3DES"]
-    assert names_of("PBEWithHmacSHA256AndAES_128") == ["PBES2", "SHA-256", "AES"]
-    aes = decompose_jca("PBEWithHmacSHA256AndAES_128")[2]  # type: ignore[index]
+    assert names_of("PBEWithHmacSHA256AndAES_128") == ["PBES2", "AES"]
+    aes = decompose_jca("PBEWithHmacSHA256AndAES_128")[1]  # type: ignore[index]
     assert aes.parameter_set == "128"
     rc2 = decompose_jca("PBEWithSHA1AndRC2_40")[2]  # type: ignore[index]
     assert (rc2.name, rc2.parameter_set) == ("RC2", "40")
 
 
 def test_hmac_and_pbkdf2_names() -> None:
-    assert names_of("HmacSHA256") == ["HMAC", "SHA-256"]
-    assert names_of("HmacSHA512/256") == ["HMAC", "SHA-512/256"]
-    assert names_of("PBKDF2WithHmacSHA1") == ["PBKDF2", "HMAC", "SHA-1"]
+    assert names_of("HmacSHA256") == names_of("HmacSHA512/256") == ["HMAC"]
+    assert names_of("PBKDF2WithHmacSHA1") == ["PBKDF2"]
+    bits = {
+        n: decompose_jca(n)[0].parameter_set
+        for n in ("HmacMD5", "HmacSHA1", "HmacSHA256", "HmacSHA512", "PBKDF2WithHmacSHA512")
+    }  # type: ignore[index]
+    assert bits == {
+        "HmacMD5": "128",
+        "HmacSHA1": "160",
+        "HmacSHA256": "256",
+        "HmacSHA512": "512",
+        "PBKDF2WithHmacSHA512": "512",
+    }
 
 
 def test_transformations_keep_their_mode_and_padding() -> None:
@@ -129,3 +139,28 @@ def test_measured_coverage_of_61_common_jca_names() -> None:
     ).split()
     result = assemble([claim(n) for n in names], K)
     assert result.unresolved == (), f"still unresolved: {result.unresolved}"
+
+
+def classes(name: str) -> dict[str, FindingClass]:
+    return {a.algorithm_family: a.finding_class for a in assemble([claim(name)], K).assets}
+
+
+def test_macs_and_kdfs_are_classified_by_digest_size_and_never_as_broken_hashes() -> None:
+    """OQ-21 decision (ARCH.md 7.1): HMAC over SHA-384/512 is quantum-safe, over <=256
+    bits informational; HmacMD5 is NOT a classical-weak MD5 finding."""
+    assert classes("HmacSHA512") == {"HMAC": FindingClass.QUANTUM_SAFE}
+    assert classes("HmacSHA256") == {"HMAC": FindingClass.GROVER_AFFECTED}
+    assert classes("HmacMD5") == {"HMAC": FindingClass.GROVER_AFFECTED}
+    assert classes("PBKDF2WithHmacSHA512") == {"PBKDF2": FindingClass.QUANTUM_SAFE}
+    assert classes("PBKDF2WithHmacSHA1") == {"PBKDF2": FindingClass.GROVER_AFFECTED}
+
+
+def test_pbes1_is_classical_weak_and_so_are_its_md5_and_des_halves() -> None:
+    assert classes("PBEWithMD5AndDES") == {
+        "PBES1": FindingClass.CLASSICAL_WEAK,
+        "MD5": FindingClass.CLASSICAL_WEAK,
+        "DES": FindingClass.CLASSICAL_WEAK,
+    }
+    pbes2 = classes("PBEWithHmacSHA256AndAES_128")
+    assert pbes2["PBES2"] is FindingClass.GROVER_AFFECTED
+    assert pbes2["AES"] is FindingClass.GROVER_AFFECTED  # AES-128

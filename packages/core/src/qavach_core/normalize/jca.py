@@ -49,6 +49,13 @@ _DIGESTS = {
     "sha3-512": "SHA3-512",
 }
 # name -> (spelling the resolver knows, parameter_set)
+# output size in bits: the parameter a MAC/KDF is classified by (ARCH.md 7.1: "HMAC over
+# those" - the quantum posture of HMAC(D) follows D's output size, not D's collision resistance)
+_BITS = {
+    "MD2": "128", "MD5": "128", "SHA-1": "160", "SHA-224": "224", "SHA-256": "256",
+    "SHA-384": "384", "SHA-512": "512", "SHA-512/224": "224", "SHA-512/256": "256",
+    "SHA3-224": "224", "SHA3-256": "256", "SHA3-384": "384", "SHA3-512": "512",
+}  # fmt: skip
 _SIGNATURES = {"rsa": ("RSA", None), "dsa": ("DSA", None), "ecdsa": ("ECDSA", None)}
 _CIPHERS = {
     "des": ("DES", None),
@@ -117,30 +124,27 @@ def decompose_jca(name: str) -> tuple[JcaComponent, ...] | None:
     if m:
         prf, cipher = _prf(m.group(1)), _cipher(m.group(2))
         if prf is not None and cipher is not None:
-            digest = _digest(m.group(1)) or _digest(m.group(1)[4:])
-            pbes = "PBES1" if _digest(m.group(1)) else "PBES2"
-            return (
-                JcaComponent(pbes, "kdf"),
-                JcaComponent(digest or prf, "hash"),
-                JcaComponent(
-                    cipher[0], "block-cipher" if cipher[0] != "RC4" else "stream-cipher", cipher[1]
-                ),
+            kind = "block-cipher" if cipher[0] != "RC4" else "stream-cipher"
+            if _digest(m.group(1)):  # PBES1 (PKCS#5 v1.5): a bare digest; both halves are weak
+                return (
+                    JcaComponent("PBES1", "kdf"),
+                    JcaComponent(prf, "hash"),
+                    JcaComponent(cipher[0], kind, cipher[1]),
+                )
+            return (  # PBES2: `Hmac<digest>` is the PRF, classified by its output size
+                JcaComponent("PBES2", "kdf", _BITS[prf]),
+                JcaComponent(cipher[0], kind, cipher[1]),
             )
 
     # PBKDF2With<prf>
     m = re.fullmatch(r"pbkdf2with(.+)", n, re.IGNORECASE)
     if m and _prf(m.group(1)):
-        digest = _digest(m.group(1)) or _digest(m.group(1)[4:])
-        return (
-            JcaComponent("PBKDF2", "kdf"),
-            JcaComponent("HMAC", "mac"),
-            JcaComponent(digest or "", "hash"),
-        )
+        return (JcaComponent("PBKDF2", "kdf", _BITS[_prf(m.group(1)) or ""]),)
 
     # Hmac<digest>
     m = re.fullmatch(r"hmac(.+)", n, re.IGNORECASE)
     if m and _digest(m.group(1)):
-        return (JcaComponent("HMAC", "mac"), JcaComponent(_digest(m.group(1)) or "", "hash"))
+        return (JcaComponent("HMAC", "mac", _BITS[_digest(m.group(1)) or ""]),)
 
     # <cipher>/<mode>/<padding>
     parts = n.split("/")
