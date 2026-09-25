@@ -2,7 +2,7 @@ import { api } from "@/api/client";
 import type { DiffChange, DiffRow, ScanDiff } from "@/api/types";
 import { BandBadge, Card, CardTitle, ErrorBox, FindingBadge, Loading, Pill } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 const DIRECTION: Record<DiffChange["direction"], { label: string; className: string }> = {
@@ -127,10 +127,33 @@ function DiffView({ diff }: { diff: ScanDiff }) {
 
 export function History() {
   const scans = useQuery({ queryKey: ["scans"], queryFn: api.scans });
+  const queryClient = useQueryClient();
+
+ const deleteScan = useMutation({
+  mutationFn: async (ids: string[]) => {
+    await Promise.all(ids.map((id) => api.deleteScan(id)));
+  },
+  onSuccess: () => {
+    setSelectedScans([]);
+    queryClient.invalidateQueries({ queryKey: ["scans"] });
+  },
+});
   const [before, setBefore] = useState<string>("");
   const [after, setAfter] = useState<string>("");
+  const [selectedScans, setSelectedScans] = useState<string[]>([]);
 
   const list = scans.data ?? [];
+  const allSelected = list.length > 0 && selectedScans.length === list.length;
+
+const toggleScan = (id: string) => {
+  setSelectedScans((current) =>
+    current.includes(id) ? current.filter((scanId) => scanId !== id) : [...current, id],
+  );
+};
+
+const toggleAll = () => {
+  setSelectedScans(allSelected ? [] : list.map((scan) => scan.id));
+};
   // The API lists newest first: default to comparing the latest scan with the one before it.
   const afterId = after || list[0]?.id || "";
   const beforeId = before || list[1]?.id || "";
@@ -165,12 +188,71 @@ export function History() {
     <div className="mx-auto max-w-6xl space-y-4">
       <h1 className="text-xl font-semibold">Scan history and drift</h1>
       <Card>
-        <CardTitle>{list.length} scan(s)</CardTitle>
-        <div className="flex flex-wrap gap-4">
-          {select(beforeId, setBefore, "Before")}
-          {select(afterId, setAfter, "After")}
+  <div className="flex items-center justify-between">
+    <CardTitle>{list.length} scan(s)</CardTitle>
+
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={toggleAll}
+        className="rounded-md bg-slate-800 px-3 py-1.5 text-sm text-slate-300 ring-1 ring-slate-700 hover:bg-slate-700"
+      >
+        {allSelected ? "Deselect All" : "Select All"}
+      </button>
+
+      {selectedScans.length > 0 && (
+        <button
+          type="button"
+          disabled={deleteScan.isPending}
+          onClick={() => {
+            if (
+              window.confirm(
+                `Delete ${selectedScans.length} selected scan(s)?`,
+              )
+            ) {
+              deleteScan.mutate(selectedScans);
+            }
+          }}
+          className="rounded-md bg-red-500/10 px-3 py-1.5 text-sm text-red-300 ring-1 ring-red-500/30 hover:bg-red-500/20 disabled:opacity-50"
+        >
+          {deleteScan.isPending
+            ? "Deleting..."
+            : `Delete Selected (${selectedScans.length})`}
+        </button>
+      )}
+    </div>
+  </div>
+
+  <div className="mt-3 space-y-2">
+    {list.map((scan) => (
+      <div
+        key={scan.id}
+        className="flex items-center justify-between rounded-md bg-slate-900 p-3 ring-1 ring-slate-800"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <input
+            type="checkbox"
+            checked={selectedScans.includes(scan.id)}
+            onChange={() => toggleScan(scan.id)}
+            className="h-4 w-4"
+          />
+
+          <div className="min-w-0">
+            <div className="truncate font-mono text-xs">{scan.id}</div>
+            <div className="text-xs text-slate-500">
+              {scan.started.slice(0, 16).replace("T", " ")} · {scan.status}
+            </div>
+          </div>
         </div>
-      </Card>
+      </div>
+    ))}
+  </div>
+
+  <div className="mt-4 flex flex-wrap gap-4">
+    {select(beforeId, setBefore, "Before")}
+    {select(afterId, setAfter, "After")}
+  </div>
+</Card>
 
       {list.length < 2 ? (
         <Card>
