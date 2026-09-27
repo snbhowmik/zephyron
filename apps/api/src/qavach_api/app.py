@@ -196,6 +196,8 @@ def create_app(state: AppState) -> FastAPI:
         return {"scan_id": scan_id, "status": "queued"}
 
     @app.get(f"{API_PREFIX}/scans")
+
+
     def list_scans(
         repo: RepoDep, limit: int = Query(default=50, ge=1, le=200)
     ) -> list[dict[str, Any]]:
@@ -214,6 +216,20 @@ def create_app(state: AppState) -> FastAPI:
             }
             for r in rows
         ]
+
+    @app.delete(f"{API_PREFIX}/scans/{{scan_id}}")
+    def delete_scan(scan_id: str, repo: RepoDep) -> dict[str, Any]:
+        deleted = repo.delete_scan(scan_id)
+
+        if not deleted:
+            raise HTTPException(404, f"scan {scan_id!r} not found")
+
+        repo.s.commit()
+
+        return {
+            "deleted": True,
+            "scan_id": scan_id,
+        }
 
     @app.get(f"{API_PREFIX}/scans/{{scan_id}}")
     def get_scan(scan_id: str, repo: RepoDep) -> dict[str, Any]:

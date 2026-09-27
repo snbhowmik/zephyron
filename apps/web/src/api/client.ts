@@ -99,6 +99,7 @@ export function queryString(params: Record<string, string | number | boolean | u
 export const api = {
   meta: () => request<Meta>("/api/v1/meta"),
   scans: () => request<ScanListItem[]>("/api/v1/scans"),
+  deleteScan: (id: string) => request<{ deleted: boolean; scan_id: string }>(`/api/v1/scans/${id}`, { method: "DELETE", }),
   scan: (id: string) => request<ScanDetail>(`/api/v1/scans/${id}`),
   agents: () => request<AgentSummary[]>("/api/v1/agents"),
   agent: (id: string) => request<AgentDetail>(`/api/v1/agents/${id}`),

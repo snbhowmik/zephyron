@@ -228,6 +228,99 @@ class Repository:
     def get_scan(self, scan_id: str) -> m.ScanRun | None:
         return self.s.get(m.ScanRun, scan_id)
 
+    def delete_scan(self, scan_id: str) -> bool:
+        """Delete a scan and all data belonging to it.
+
+        Returns True if the scan existed and was deleted, otherwise False."""
+        scan = self.s.get(m.ScanRun, scan_id)
+        if scan is None:
+            return False
+
+        # Agent runs reference scans, so remove those first.
+        self.s.execute(
+            delete(m.AgentRun).where(m.AgentRun.scan_run_id == scan_id)
+        )
+
+        # Collector runs are referenced by occurrences.
+        collector_runs = self.s.scalars(
+            select(m.CollectorRun).where(
+                m.CollectorRun.scan_run_id == scan_id
+            )
+        ).all()
+
+        collector_run_ids = [run.id for run in collector_runs]
+
+        if collector_run_ids:
+            self.s.execute(
+                delete(m.OccurrenceRow).where(
+                    m.OccurrenceRow.collector_run_id.in_(collector_run_ids)
+                )
+            )
+
+        # Get the assets belonging to this scan.
+        assets = self.s.scalars(
+            select(m.CryptoAssetRow).where(
+                m.CryptoAssetRow.scan_run_id == scan_id
+            )
+        ).all()
+
+        asset_ids = [asset.id for asset in assets]
+
+        if asset_ids:
+            self.s.execute(
+                delete(m.OccurrenceRow).where(
+                    m.OccurrenceRow.asset_id.in_(asset_ids)
+                )
+            )
+            self.s.execute(
+                delete(m.AssetSystem).where(
+                    m.AssetSystem.asset_id.in_(asset_ids)
+                )
+            )
+            self.s.execute(
+                delete(m.RecommendationRow).where(
+                    m.RecommendationRow.asset_id.in_(asset_ids)
+                )
+            )
+
+        # Delete scan-level data.
+        self.s.execute(
+            delete(m.RiskScoreRow).where(
+                m.RiskScoreRow.scan_run_id == scan_id
+            )
+        )
+        self.s.execute(
+            delete(m.MigrationEdgeRow).where(
+                m.MigrationEdgeRow.scan_run_id == scan_id
+            )
+        )
+        self.s.execute(
+            delete(m.MigrationUnitRow).where(
+                m.MigrationUnitRow.scan_run_id == scan_id
+            )
+        )
+
+        # Delete assets and collector runs.
+        self.s.execute(
+            delete(m.CryptoAssetRow).where(
+                m.CryptoAssetRow.scan_run_id == scan_id
+            )
+        )
+        self.s.execute(
+            delete(m.CollectorRun).where(
+                m.CollectorRun.scan_run_id == scan_id
+            )
+        )
+
+        # Finally delete the scan itself.
+        self.s.delete(scan)
+        self.s.flush()
+
+        return True
+
+
+    
+
     def set_status(
         self,
         scan_id: str,
